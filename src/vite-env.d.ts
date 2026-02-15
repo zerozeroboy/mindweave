@@ -5,6 +5,7 @@ type Workspace = {
   source_path: string;
   mirror_path: string;
   model: string;
+  enableWebSearch?: boolean;
 };
 
 type SyncResult = {
@@ -13,17 +14,62 @@ type SyncResult = {
   message: string;
 };
 
+type MirrorDirEntry = {
+  name: string;
+  path: string;
+  kind: "file" | "dir";
+  size?: number;
+  mtimeMs?: number;
+};
+
+type MirrorListDirResult = {
+  directory: string;
+  entries: MirrorDirEntry[];
+};
+
+type MirrorReadFileResult = {
+  path: string;
+  content: string;
+  truncated: boolean;
+  bytes: number;
+};
+
 type StreamChunk = 
   | { type: "thought"; content: string[] }
   | { type: "thinking"; content: string }
   | { type: "text"; content: string }
+  | {
+      type: "tool";
+      stage: "start" | "end";
+      callId: string;
+      name: string;
+      title: string;
+      details: string[];
+      ok?: boolean;
+      durationMs?: number;
+    }
+  | {
+      type: "tool_args";
+      callId: string;
+      name: string;
+      totalLen: number;
+      preview: {
+        path?: string;
+        field?: "content" | "patch" | "arguments";
+        text: string;
+        truncated: boolean;
+      };
+    }
   | { type: "done"; sources: string[]; thought_trace: string[] };
 
 type ElectronApi = {
   selectDirectory: () => Promise<string>;
   getWorkspaces: () => Promise<Workspace[]>;
-  createWorkspace: (payload: { name: string; source_path: string; model: string }) => Promise<Workspace>;
+  createWorkspace: (payload: { name: string; source_path: string; model: string; enableWebSearch?: boolean }) => Promise<Workspace>;
+  updateWorkspace: (name: string, updates: { model?: string; enableWebSearch?: boolean }) => Promise<Workspace>;
   syncWorkspace: (workspaceName: string) => Promise<SyncResult>;
+  listMirrorDir: (workspaceName: string, relativeDir?: string) => Promise<MirrorListDirResult>;
+  readMirrorFile: (workspaceName: string, filePath: string, maxBytes?: number) => Promise<MirrorReadFileResult>;
   chat: (payload: {
     workspace_name: string;
     message: string;

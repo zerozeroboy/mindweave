@@ -8,6 +8,7 @@ export type Workspace = {
   source_path: string;
   mirror_path: string;
   model: string;
+  enableWebSearch?: boolean;
 };
 
 const config = getConfig();
@@ -47,6 +48,7 @@ export async function createWorkspace(payload: {
   name: string;
   source_path: string;
   model: string;
+  enableWebSearch?: boolean;
 }): Promise<Workspace> {
   const all = await listWorkspaces();
   if (all.find((item) => item.name === payload.name)) {
@@ -60,9 +62,24 @@ export async function createWorkspace(payload: {
     name: payload.name,
     source_path: payload.source_path,
     mirror_path,
-    model: payload.model
+    model: payload.model,
+    enableWebSearch: payload.enableWebSearch ?? false
   };
   all.push(workspace);
+  await saveWorkspaces(all);
+  return workspace;
+}
+
+export async function updateWorkspace(
+  name: string,
+  updates: Partial<Pick<Workspace, "model" | "enableWebSearch">>
+): Promise<Workspace> {
+  const all = await listWorkspaces();
+  const workspace = all.find((item) => item.name === name);
+  if (!workspace) {
+    throw new Error("工作空间不存在");
+  }
+  Object.assign(workspace, updates);
   await saveWorkspaces(all);
   return workspace;
 }

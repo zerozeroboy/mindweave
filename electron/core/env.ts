@@ -32,10 +32,15 @@ function readEnvFile(): Record<string, string> {
 
 export function getConfig() {
   const env = readEnvFile();
+  const debugModelIoMaxCharsRaw = Number(env.DEBUG_MODEL_IO_MAX_CHARS);
   return {
     rootDir: ROOT_DIR,
     arkApiKey: env.ARK_API_KEY || "",
     arkBaseUrl: env.ARK_BASE_URL || "https://ark.cn-beijing.volces.com/api/v3",
-    defaultModel: env.DOUBAO_DEFAULT_MODEL || "doubao-seed-1-8-251228"
+    defaultModel: env.DOUBAO_DEFAULT_MODEL || "doubao-seed-2-0-lite-260215",
+    debugModelIo: env.DEBUG_MODEL_IO === "1",
+    debugModelIoVerbose: env.DEBUG_MODEL_IO_VERBOSE === "1",
+    debugModelIoMaxChars:
+      Number.isFinite(debugModelIoMaxCharsRaw) && debugModelIoMaxCharsRaw > 0 ? debugModelIoMaxCharsRaw : 2000
   };
 }

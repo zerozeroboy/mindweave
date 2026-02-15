@@ -24,8 +24,9 @@ export function registerAgentIpc() {
       }
 
       const cachedHistory: ChatHistoryItem[] = sessionCache.get(workspace.name) ?? [];
+      // 只要前端显式传入 history（即便是空数组），都以传入值为准；仅在未传时回退缓存
       const history: ChatHistoryItem[] =
-        payload.history && payload.history.length > 0 ? payload.history : cachedHistory;
+        payload.history !== undefined ? payload.history : cachedHistory;
       
       const window = BrowserWindow.fromWebContents(event.sender);
       if (!window) {

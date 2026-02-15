@@ -5,13 +5,13 @@
 
 # 产品方案
 
-## 产品名称（暂定）：AgentOS
+## 产品名称（暂定）：MindWeave
 
 ---
 
 # 1. 产品概述
 
-AgentOS 是一个本地运行的 Agent 操作系统。
+MindWeave 是一个本地运行的 Agent 操作系统。
 其核心目标是：
 
 * 将本地文件系统转换为 AI 可操作的知识空间
@@ -315,7 +315,7 @@ OpenAI Responses API
 
 # 13. 总结
 
-AgentOS 是一个：
+MindWeave 是一个：
 
 * 本地运行
 * 文件驱动

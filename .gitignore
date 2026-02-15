@@ -8,6 +8,15 @@ node_modules/
 # build outputs
 dist/
 dist-electron/
+out/
+release/
+
+# electron packages
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
 
 # app / agent runtime state
 agent-space/
@@ -16,6 +25,21 @@ agent-space/
 # editor / tooling
 .cursor/
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# test coverage
+coverage/
+.nyc_output/
+
+# cache and temp
+.cache/
+.temp/
+temp/
+.tmp/
+tmp/
+*.tsbuildinfo
 
 # logs
 *.log
@@ -26,3 +50,4 @@ pnpm-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
