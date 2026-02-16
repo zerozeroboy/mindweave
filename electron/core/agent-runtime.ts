@@ -286,6 +286,144 @@ function truncateHead(text: string, maxChars: number) {
   return { text: t.slice(0, maxChars), truncated: true };
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") return null;
+  return value as Record<string, unknown>;
+}
+
+function getWebSearchQuery(raw: Record<string, unknown>) {
+  const pick = (obj: Record<string, unknown>) => {
+    if (typeof obj.query === "string" && obj.query.trim()) return obj.query.trim();
+    const queries = obj.queries;
+    if (Array.isArray(queries)) {
+      const first = queries[0];
+      if (typeof first === "string" && first.trim()) return first.trim();
+      if (first && typeof first === "object") {
+        const firstObj = first as Record<string, unknown>;
+        if (typeof firstObj.query === "string" && firstObj.query.trim()) return firstObj.query.trim();
+        if (typeof (firstObj as any).q === "string" && String((firstObj as any).q).trim()) return String((firstObj as any).q).trim();
+      }
+    }
+    if (typeof (obj as any).search_query === "string" && String((obj as any).search_query).trim()) {
+      return String((obj as any).search_query).trim();
+    }
+    if (typeof (obj as any).q === "string" && String((obj as any).q).trim()) {
+      return String((obj as any).q).trim();
+    }
+    return "";
+  };
+
+  const direct = pick(raw);
+  if (direct) return direct;
+
+  const nestedKeys = ["input", "parameters", "args", "payload", "request"];
+  for (const k of nestedKeys) {
+    const nested = asRecord((raw as any)[k]);
+    if (!nested) continue;
+    const q = pick(nested);
+    if (q) return q;
+  }
+  return "";
+}
+
+function getWebSearchCallId(raw: Record<string, unknown>, query: string) {
+  const idCandidates = [
+    raw.call_id,
+    raw.id,
+    (raw as any).search_id,
+    (raw as any).tool_call_id
+  ].filter((v) => typeof v === "string" && v.trim()) as string[];
+  const id = idCandidates[0] ?? "";
+  if (id) return `web_search:${id}`;
+  if (query) {
+    const enc = Buffer.from(query).toString("base64url").slice(0, 24);
+    return `web_search:q:${enc}`;
+  }
+  return "";
+}
+
+function getWebSearchUrls(raw: Record<string, unknown>) {
+  const out: string[] = [];
+  const urlKeys = ["url", "link", "source_url", "sourceUrl", "href"];
+
+  const collect = (value: unknown, depth: number) => {
+    if (depth <= 0 || !value) return;
+    if (typeof value === "string") return;
+    if (Array.isArray(value)) {
+      for (const v of value) collect(v, depth - 1);
+      return;
+    }
+    if (typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      for (const k of urlKeys) {
+        const u = obj[k];
+        if (typeof u === "string" && u.trim()) out.push(u.trim());
+      }
+      const containers = [
+        (obj as any).results,
+        (obj as any).search_results,
+        (obj as any).items,
+        (obj as any).data,
+        (obj as any).output,
+        (obj as any).result,
+        (obj as any).documents
+      ];
+      for (const c of containers) collect(c, depth - 1);
+    }
+  };
+
+  collect(raw, 3);
+  return [...new Set(out)];
+}
+
+function getWebSearchSignalsFromChunk(chunk: ModelResponse | StreamEvent) {
+  const signals: Array<{ callId: string; query: string; done: boolean; urls: string[] }> = [];
+  const evt = chunk as StreamEvent;
+
+  const addFromRaw = (raw: unknown, evtType: string) => {
+    if (!raw || typeof raw !== "object") return;
+    const obj = raw as Record<string, unknown>;
+    const t = typeof obj.type === "string" ? obj.type.toLowerCase() : "";
+    if (!t.includes("web_search")) return;
+
+    const query = getWebSearchQuery(obj);
+    const callId = getWebSearchCallId(obj, query);
+    if (!callId) return;
+
+    const status = typeof (obj as any).status === "string" ? String((obj as any).status).toLowerCase() : "";
+    const done =
+      evtType === "response.output_item.done" ||
+      status === "completed" ||
+      status === "succeeded" ||
+      status === "success" ||
+      t.includes("result");
+    const urls = getWebSearchUrls(obj);
+    signals.push({ callId, query, done, urls });
+  };
+
+  addFromRaw(evt.item, typeof evt.type === "string" ? evt.type : "");
+  const resp = toModelResponse(chunk);
+  for (const item of resp.output ?? []) {
+    addFromRaw(item as any, typeof evt.type === "string" ? evt.type : "");
+  }
+
+  const byId = new Map<string, { callId: string; query: string; done: boolean; urls: string[] }>();
+  for (const s of signals) {
+    const prev = byId.get(s.callId);
+    if (!prev) {
+      byId.set(s.callId, s);
+      continue;
+    }
+    byId.set(s.callId, {
+      callId: s.callId,
+      query: s.query || prev.query,
+      done: s.done || prev.done,
+      urls: [...new Set([...prev.urls, ...s.urls])]
+    });
+  }
+  return [...byId.values()];
+}
+
 function toolDisplayName(toolName: string) {
   const map: Record<string, string> = {
     list_files: "列出文件",
@@ -293,7 +431,8 @@ function toolDisplayName(toolName: string) {
     read_file: "读取文件",
     write_file: "写入文件",
     create_file: "创建文件",
-    patch_file: "增量更新"
+    patch_file: "增量更新",
+    web_search: "联网搜索"
   };
   return map[toolName] ?? toolName;
 }
@@ -406,6 +545,8 @@ export async function* runAgentChatStream(payload: {
   const emittedThinkingFallback = new Set<string>();
   const toolArgsBuffers = new Map<string, string>();
   const toolStartEmitted = new Set<string>();
+  const webSearchStartedAt = new Map<string, number>();
+  const webSearchEnded = new Set<string>();
 
   // ModelArk Responses API: input item uses { type:"message", role, content:"..." }
   input.push({
@@ -516,6 +657,56 @@ export async function* runAgentChatStream(payload: {
             }
           };
           yield argsChunk;
+        }
+      }
+
+      const webSearchSignals = getWebSearchSignalsFromChunk(chunkData);
+      if (webSearchSignals.length > 0) {
+        for (const s of webSearchSignals) {
+          if (!toolStartEmitted.has(s.callId)) {
+            toolStartEmitted.add(s.callId);
+            webSearchStartedAt.set(s.callId, Date.now());
+            thoughtTrace.push(`🔧 调用工具: web_search`);
+            const startDetails: string[] = [];
+            if (s.query) startDetails.push(`查询：${s.query}`);
+            const toolStartChunk: ToolStreamChunk = {
+              type: "tool",
+              stage: "start",
+              callId: s.callId,
+              name: "web_search",
+              title: "正在执行：联网搜索",
+              details: startDetails.length > 0 ? startDetails : ["发起搜索中..."]
+            };
+            yield toolStartChunk;
+          }
+
+          if (s.done && !webSearchEnded.has(s.callId)) {
+            webSearchEnded.add(s.callId);
+            const startedAt = webSearchStartedAt.get(s.callId) ?? Date.now();
+            const durationMs = Date.now() - startedAt;
+            const endDetails: string[] = [];
+            if (s.query) endDetails.push(`查询：${s.query}`);
+            if (s.urls.length > 0) {
+              endDetails.push(`来源：${s.urls.length} 条`);
+              if (s.urls.length <= 6) {
+                endDetails.push(`链接：\n${s.urls.map((u) => `  - ${u}`).join("\n")}`);
+              } else {
+                endDetails.push(`链接（前6条）：\n${s.urls.slice(0, 6).map((u) => `  - ${u}`).join("\n")}\n  ... （共 ${s.urls.length} 条）`);
+              }
+            }
+            endDetails.push(`耗时：${Math.max(0, Math.round(durationMs))} ms`);
+            const toolEndChunk: ToolStreamChunk = {
+              type: "tool",
+              stage: "end",
+              callId: s.callId,
+              name: "web_search",
+              title: "已完成：联网搜索",
+              details: endDetails,
+              ok: true,
+              durationMs
+            };
+            yield toolEndChunk;
+          }
         }
       }
 
@@ -630,6 +821,21 @@ export async function* runAgentChatStream(payload: {
 
     // 如果没有处理任何 chunk 或者不需要下一轮，结束
     if (!hasProcessedChunk || !needNextRound) {
+      for (const [callId, startedAt] of webSearchStartedAt.entries()) {
+        if (webSearchEnded.has(callId)) continue;
+        const durationMs = Date.now() - startedAt;
+        const toolEndChunk: ToolStreamChunk = {
+          type: "tool",
+          stage: "end",
+          callId,
+          name: "web_search",
+          title: "已完成：联网搜索",
+          details: [`耗时：${Math.max(0, Math.round(durationMs))} ms`],
+          ok: true,
+          durationMs
+        };
+        yield toolEndChunk;
+      }
       yield {
         type: "done",
         sources: [...sources],

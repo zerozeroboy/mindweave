@@ -30,17 +30,49 @@ function readEnvFile(): Record<string, string> {
   return env;
 }
 
+function getEnvValue(fileEnv: Record<string, string>, key: string): string {
+  const fromProcess = process.env[key];
+  if (typeof fromProcess === "string") return fromProcess;
+  const fromFile = fileEnv[key];
+  return typeof fromFile === "string" ? fromFile : "";
+}
+
+function parseBool(raw: string, defaultValue: boolean): boolean {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (!v) return defaultValue;
+  if (v === "1" || v === "true" || v === "yes" || v === "y" || v === "on") return true;
+  if (v === "0" || v === "false" || v === "no" || v === "n" || v === "off") return false;
+  return defaultValue;
+}
+
+function parseVisibleExts(raw: string, defaultValue: string[]): string[] | "*" {
+  const v = String(raw ?? "").trim();
+  if (!v) return defaultValue;
+  if (v === "*") return "*";
+  const parts = v
+    .split(/[,\s;]+/g)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => (item.startsWith(".") ? item : `.${item}`))
+    .map((item) => item.toLowerCase());
+  return parts.length ? Array.from(new Set(parts)) : defaultValue;
+}
+
 export function getConfig() {
-  const env = readEnvFile();
-  const debugModelIoMaxCharsRaw = Number(env.DEBUG_MODEL_IO_MAX_CHARS);
+  const fileEnv = readEnvFile();
+  const debugModelIoMaxCharsRaw = Number(getEnvValue(fileEnv, "DEBUG_MODEL_IO_MAX_CHARS"));
+  const defaultMirrorVisibleExts = [".md", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp"];
   return {
     rootDir: ROOT_DIR,
-    arkApiKey: env.ARK_API_KEY || "",
-    arkBaseUrl: env.ARK_BASE_URL || "https://ark.cn-beijing.volces.com/api/v3",
-    defaultModel: env.DOUBAO_DEFAULT_MODEL || "doubao-seed-2-0-lite-260215",
-    debugModelIo: env.DEBUG_MODEL_IO === "1",
-    debugModelIoVerbose: env.DEBUG_MODEL_IO_VERBOSE === "1",
+    arkApiKey: getEnvValue(fileEnv, "ARK_API_KEY"),
+    arkBaseUrl: getEnvValue(fileEnv, "ARK_BASE_URL") || "https://ark.cn-beijing.volces.com/api/v3",
+    defaultModel: getEnvValue(fileEnv, "DOUBAO_DEFAULT_MODEL") || "doubao-seed-2-0-lite-260215",
+    debugModelIo: parseBool(getEnvValue(fileEnv, "DEBUG_MODEL_IO"), false),
+    debugModelIoVerbose: parseBool(getEnvValue(fileEnv, "DEBUG_MODEL_IO_VERBOSE"), false),
     debugModelIoMaxChars:
       Number.isFinite(debugModelIoMaxCharsRaw) && debugModelIoMaxCharsRaw > 0 ? debugModelIoMaxCharsRaw : 2000
+    ,
+    mirrorVisibleExts: parseVisibleExts(getEnvValue(fileEnv, "MIRROR_VISIBLE_EXTS"), defaultMirrorVisibleExts),
+    mirrorShowBackups: parseBool(getEnvValue(fileEnv, "MIRROR_SHOW_BACKUPS"), false)
   };
 }

@@ -12,6 +12,8 @@ export default function FilePreviewPanel({ filePreview, setFilePreview }: FilePr
   if (!filePreview) return null;
 
   const isMarkdown = filePreview.path.toLowerCase().endsWith('.md');
+  const lowerPath = filePreview.path.toLowerCase();
+  const isImage = (typeof filePreview.mime === "string" && filePreview.mime.startsWith("image/")) || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(lowerPath);
   const content = filePreview.truncated ? filePreview.content + "\n\n*(Content truncated)*" : filePreview.content;
 
   // Extract filename from path
@@ -73,8 +75,21 @@ export default function FilePreviewPanel({ filePreview, setFilePreview }: FilePr
       
       {/* Content */}
       <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
-        {isMarkdown ? (
-          <div className="prose prose-sm max-w-none" style={{ fontFamily: 'var(--mw-font-ui)' }}>
+        {isImage && filePreview.encoding === "base64" && filePreview.mime ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {filePreview.truncated ? (
+              <div style={{ fontSize: 12, color: "#b45309" }}>
+                图片内容被截断，建议调大读取上限。
+              </div>
+            ) : null}
+            <img
+              src={`data:${filePreview.mime};base64,${filePreview.content}`}
+              alt={filename}
+              style={{ maxWidth: "100%", height: "auto", borderRadius: 6, border: "1px solid #e5e7eb" }}
+            />
+          </div>
+        ) : isMarkdown ? (
+          <div className="mw-markdown max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {content}
             </ReactMarkdown>

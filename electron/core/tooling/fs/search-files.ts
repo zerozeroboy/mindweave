@@ -1,10 +1,53 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { toUnixRelative } from "../../path-safe.js";
-import { walkFiles } from "../../sync.js";
+import { getMirrorVisibilityConfig, shouldIncludeMirrorFile, type MirrorVisibilityConfig } from "../../mirror-visibility.js";
 import type { ToolDefinition, SearchHit, ToolResult } from "../types.js";
 import { parseArgs } from "../types.js";
 import { grepLike, matchGlob } from "./fs-utils.js";
+
+const SEARCHABLE_TEXT_EXTS = new Set([
+  ".md",
+  ".txt",
+  ".json",
+  ".yml",
+  ".yaml",
+  ".js",
+  ".jsx",
+  ".ts",
+  ".tsx",
+  ".css",
+  ".html"
+]);
+
+function isSearchableTextFile(fileName: string): boolean {
+  const ext = path.extname(fileName).toLowerCase();
+  return SEARCHABLE_TEXT_EXTS.has(ext);
+}
+
+async function walkSearchableFiles(root: string, vis: MirrorVisibilityConfig): Promise<string[]> {
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  const files: string[] = [];
+  const dirs: string[] = [];
+
+  for (const entry of entries) {
+    if (entry.name === ".mindweave") continue;
+    const fullPath = path.join(root, entry.name);
+    if (entry.isFile()) {
+      if (!shouldIncludeMirrorFile(entry.name, vis)) continue;
+      if (!isSearchableTextFile(entry.name)) continue;
+      files.push(fullPath);
+    } else if (entry.isDirectory()) {
+      dirs.push(fullPath);
+    }
+  }
+
+  const out = [...files];
+  for (const dir of dirs) {
+    out.push(...(await walkSearchableFiles(dir, vis)));
+  }
+  return out;
+}
 
 export const searchFilesTool: ToolDefinition = {
   schema: {
@@ -107,7 +150,8 @@ interface SearchOptions {
 async function searchFiles(options: SearchOptions): Promise<ToolResult> {
   const { root, query, regex, caseSensitive, wholeWords, globPattern, excludePatterns, contextLines, mode, limit } = options;
   
-  const allFiles = await walkFiles(root);
+  const vis = getMirrorVisibilityConfig();
+  const allFiles = await walkSearchableFiles(root, vis);
   
   // 过滤文件
   let targetFiles = allFiles;
@@ -271,4 +315,3 @@ async function searchCount(
     }, null, 2)
   };
 }
-

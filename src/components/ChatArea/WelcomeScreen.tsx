@@ -13,7 +13,7 @@ export default function WelcomeScreen({ onSend, webSearchEnabled, onToggleWebSea
   const { token } = theme.useToken();
   const [value, setValue] = useState('');
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (value.trim()) {
@@ -45,14 +45,16 @@ export default function WelcomeScreen({ onSend, webSearchEnabled, onToggleWebSea
       
       <div className={styles.welcomeShell}>
         <div className={styles.welcomeInputShell}>
-          <Input
+          <Input.TextArea
             size="large"
             value={value}
             onChange={e => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="给 Agent 发送消息..."
             bordered={false}
+            autoSize={{ minRows: 1, maxRows: 6 }}
             className={styles.welcomeInput}
+            style={{ resize: 'none' }}
           />
 
           <div className={styles.toolbox}>

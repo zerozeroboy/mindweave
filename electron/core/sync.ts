@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import path from "node:path";
 import type { Workspace } from "./workspace-store.js";
+import { buildWorkspacePageIndex } from "./page-index.js";
 
 function ensureDirSync(target: string) {
   if (!fsSync.existsSync(target)) {
@@ -29,11 +30,12 @@ function getMirrorPath(sourceFile: string, sourceRoot: string, mirrorRoot: strin
   const relativeNoExt = relative.slice(0, relative.length - ext.length);
   return {
     ext,
+    relativeSourcePath: relative.replace(/\\/g, "/"),
     mirrorPath: path.join(mirrorRoot, `${relativeNoExt}.md`)
   };
 }
 
-async function convertSourceFile(filePath: string, ext: string) {
+async function convertSourceFile(filePath: string, ext: string, relativeSourcePath: string) {
   if (ext === ".md" || ext === ".txt") {
     return fs.readFile(filePath, "utf-8");
   }
@@ -41,7 +43,7 @@ async function convertSourceFile(filePath: string, ext: string) {
     return [
       `# ${path.basename(filePath)}`,
       "",
-      `原始文件: ${filePath}`,
+      `原始文件: ${relativeSourcePath}`,
       "",
       "> 当前版本未接入该格式转换器，已创建镜像占位文件。"
     ].join("\n");
@@ -55,21 +57,36 @@ export async function syncWorkspaceFiles(workspace: Workspace) {
   let filesConverted = 0;
 
   for (const sourceFile of sourceFiles) {
-    const { ext, mirrorPath } = getMirrorPath(sourceFile, workspace.source_path, workspace.mirror_path);
-    const content = await convertSourceFile(sourceFile, ext);
+    const { ext, relativeSourcePath, mirrorPath } = getMirrorPath(
+      sourceFile,
+      workspace.source_path,
+      workspace.mirror_path
+    );
+    const content = await convertSourceFile(sourceFile, ext, relativeSourcePath);
     if (content === null) {
       continue;
     }
 
     ensureDirSync(path.dirname(mirrorPath));
-    const wrapped = `<!-- source: ${sourceFile} -->\n${content}`;
-    await fs.writeFile(mirrorPath, wrapped, "utf-8");
+    await fs.writeFile(mirrorPath, content, "utf-8");
     filesConverted += 1;
+  }
+
+  let indexUpdated = 0;
+  let indexTotal = 0;
+  try {
+    const r = await buildWorkspacePageIndex({ workspace });
+    indexUpdated = r.updated;
+    indexTotal = r.total;
+  } catch (_error) {
+    indexUpdated = -1;
+    indexTotal = -1;
   }
 
   return {
     success: true,
     files_converted: filesConverted,
+    page_index: { updated: indexUpdated, total: indexTotal },
     message: `同步完成: ${filesConverted} 个文件`
   };
 }

@@ -8,6 +8,12 @@ import { readFileTool } from "./fs/read-file.js";
 import { writeFileTool } from "./fs/write-file.js";
 import { patchFileTool } from "./fs/patch-file.js";
 import { createFileTool } from "./fs/create-file.js";
+import {
+  pageIndexGetTreeTool,
+  pageIndexListDocsTool,
+  pageIndexReadNodesTool,
+  pageIndexSearchNodesTool
+} from "./fs/page-index.js";
 
 // web 领域
 import { fetchWebpageTool } from "./web/fetch-webpage.js";
@@ -19,6 +25,10 @@ const TOOL_LIST: ToolDefinition[] = [
   writeFileTool,
   patchFileTool,
   createFileTool,
+  pageIndexListDocsTool,
+  pageIndexGetTreeTool,
+  pageIndexSearchNodesTool,
+  pageIndexReadNodesTool,
   fetchWebpageTool
 ];
 

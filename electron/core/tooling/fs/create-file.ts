@@ -14,8 +14,7 @@ export const createFileTool: ToolDefinition = {
       type: "object",
       properties: {
         path: { type: "string" },
-        content: { type: "string" },
-        backup: { type: "boolean", description: "是否保留备份（默认 false）" }
+        content: { type: "string" }
       },
       required: ["path", "content"]
     }

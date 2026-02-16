@@ -17,7 +17,8 @@ export function useFilePreview(currentWorkspace: Workspace | null) {
     if (!currentWorkspace) return;
     setSelectedFile(filePath);
     try {
-      const result = await backend.readMirrorFile(currentWorkspace.name, filePath, 20000);
+      const isImage = /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(filePath);
+      const result = await backend.readMirrorFile(currentWorkspace.name, filePath, isImage ? 2_000_000 : 20_000);
       setFilePreview(result);
     } catch (error) {
       message.error(`Read file failed: ${(error as Error).message}`);

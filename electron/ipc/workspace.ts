@@ -4,6 +4,7 @@ import path from "node:path";
 import { createWorkspace, listWorkspaces, updateWorkspace } from "../core/workspace-store.js";
 import { syncWorkspaceFiles } from "../core/sync.js";
 import { ensureInside, toUnixRelative } from "../core/path-safe.js";
+import { getImageMimeFromPath, getMirrorVisibilityConfig, shouldIncludeMirrorFile } from "../core/mirror-visibility.js";
 
 type MirrorDirEntry = {
   name: string;
@@ -21,6 +22,8 @@ type MirrorListDirResult = {
 type MirrorReadFileResult = {
   path: string; // unix relative path
   content: string;
+  encoding?: "utf-8" | "base64";
+  mime?: string;
   truncated: boolean;
   bytes: number;
 };
@@ -80,7 +83,9 @@ export function registerWorkspaceIpc() {
       const dirents = await fs.readdir(safeDir, { withFileTypes: true });
 
       const entries: MirrorDirEntry[] = [];
+      const vis = getMirrorVisibilityConfig();
       for (const ent of dirents) {
+        if (ent.name === ".mindweave") continue;
         const fullPath = path.join(safeDir, ent.name);
         if (ent.isDirectory()) {
           entries.push({
@@ -89,6 +94,7 @@ export function registerWorkspaceIpc() {
             kind: "dir"
           });
         } else if (ent.isFile()) {
+          if (!shouldIncludeMirrorFile(ent.name, vis)) continue;
           const stat = await fs.stat(fullPath);
           entries.push({
             name: ent.name,
@@ -135,10 +141,14 @@ export function registerWorkspaceIpc() {
         const buf = Buffer.alloc(maxBytes);
         const { bytesRead } = await fh.read(buf, 0, maxBytes, 0);
         const truncated = stat.size > bytesRead;
-        const content = buf.subarray(0, bytesRead).toString("utf-8");
+        const slice = buf.subarray(0, bytesRead);
+        const mime = getImageMimeFromPath(filePath);
+        const content = mime ? slice.toString("base64") : slice.toString("utf-8");
         return {
           path: toUnixRelative(root, filePath),
           content,
+          encoding: mime ? "base64" : "utf-8",
+          mime: mime ?? undefined,
           truncated,
           bytes: stat.size
         };

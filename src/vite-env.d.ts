@@ -30,6 +30,8 @@ type MirrorListDirResult = {
 type MirrorReadFileResult = {
   path: string;
   content: string;
+  encoding?: "utf-8" | "base64";
+  mime?: string;
   truncated: boolean;
   bytes: number;
 };
