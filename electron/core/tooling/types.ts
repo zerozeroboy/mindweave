@@ -18,6 +18,11 @@ export type ToolResult = {
   query?: string;
   hits?: SearchHit[];
   path?: string;
+  directory?: string;
+  total?: number;
+  offset?: number;
+  limit?: number;
+  truncated?: boolean;
   range?: [number, number];
   content?: string;
   ok?: boolean;

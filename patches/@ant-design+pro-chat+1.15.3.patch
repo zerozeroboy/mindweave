@@ -1,0 +1,12 @@
+diff --git a/node_modules/@ant-design/pro-chat/es/ChatList/index.js b/node_modules/@ant-design/pro-chat/es/ChatList/index.js
+index 69f6ea5..008bd70 100644
+--- a/node_modules/@ant-design/pro-chat/es/ChatList/index.js
++++ b/node_modules/@ant-design/pro-chat/es/ChatList/index.js
+@@ -78,7 +78,6 @@ var ChatList = /*#__PURE__*/memo(function (_ref) {
+         text: text,
+         type: type
+       };
+-      console.log('renderItems', renderItems);
+       var historyLength = data.length;
+       var enableHistoryDivider = enableHistoryCount && historyLength > historyCount && historyCount === historyLength - index + 1;
+       return /*#__PURE__*/_jsx(ShouldUpdateItem, _objectSpread(_objectSpread(_objectSpread({}, itemProps), item), {}, {

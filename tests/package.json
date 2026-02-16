@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "sample:fetch-webpage": "npm --prefix .. run build:electron && node fetch-webpage.sample.mjs",
-    "test:unit": "npm --prefix .. run build:electron && node --test search-files.unit.mjs"
+    "test:unit": "npm --prefix .. run build:electron && node --test search-files.unit.mjs",
+    "test:api": "npm --prefix .. run build:electron && node --test api-server.unit.mjs"
   }
 }

@@ -1,0 +1,308 @@
+/* Global Scrollbar Styles - VS Code like behavior */
+
+/* The scrollbar track is transparent */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* The thumb is transparent by default */
+::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.2s;
+}
+
+/* When hovering over the scrollable area, show the thumb */
+*:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(136, 136, 136, 0.4);
+}
+
+/* When hovering over the thumb itself, make it darker */
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(136, 136, 136, 0.7);
+}
+
+::-webkit-scrollbar-corner {
+  background-color: transparent;
+}
+
+/* --- Global Ant Design Component Roundness --- */
+
+/* Make all buttons more rounded */
+.ant-btn {
+  border-radius: 12px !important;
+}
+
+/* Make dropdowns more rounded */
+.ant-dropdown,
+.ant-dropdown-menu {
+  border-radius: 12px !important;
+}
+
+/* Make modals more rounded */
+.ant-modal-content {
+  border-radius: 16px !important;
+}
+
+/* Make inputs more rounded */
+.ant-input,
+.ant-input-affix-wrapper {
+  border-radius: 12px !important;
+}
+
+/* Make segmented controls more rounded */
+.ant-segmented {
+  border-radius: 12px !important;
+}
+
+.ant-segmented-item {
+  border-radius: 10px !important;
+}
+
+/* Make tooltips more rounded */
+.ant-tooltip-inner {
+  border-radius: 10px !important;
+}
+
+/* --- Minimal Visual System Overrides --- */
+:root {
+  --mw-bg-page: #f7f8fa;
+  --mw-bg-panel: #fcfcfd;
+  --mw-bg-elevated: #ffffff;
+  --mw-text-main: #111827;
+  --mw-text-secondary: #6b7280;
+  --mw-border-soft: #e6e9ee;
+  --mw-border-softer: #eef1f4;
+  --mw-accent-soft: #eef3ff;
+  --mw-accent: #4b74f8;
+  --mw-font-ui: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif;
+}
+
+html,
+body,
+#root {
+  background: var(--mw-bg-page) !important;
+  color: var(--mw-text-main);
+  font-family: var(--mw-font-ui) !important;
+}
+
+.ant-layout {
+  background: var(--mw-bg-page) !important;
+  font-family: var(--mw-font-ui) !important;
+}
+
+.ant-layout-sider {
+  background: var(--mw-bg-panel) !important;
+  border-right: 1px solid var(--mw-border-soft) !important;
+}
+
+.ant-layout-content {
+  background: var(--mw-bg-page) !important;
+}
+
+/* Keep sidebar controls lightweight and consistent */
+.ant-layout-sider .ant-btn {
+  border-color: var(--mw-border-soft) !important;
+  color: var(--mw-text-main) !important;
+  background: var(--mw-bg-elevated) !important;
+}
+
+.ant-layout-sider .ant-btn:hover {
+  border-color: #d9dee6 !important;
+  background: #f8fafc !important;
+}
+
+.ant-segmented {
+  background: #f2f4f7 !important;
+}
+
+
+.ant-pro-chat-input-actions button[type="submit"]:hover,
+.ant-pro-chat-input-action-send:hover {
+  background: #ebeef3 !important;
+  color: #111827 !important;
+}
+
+/* Harmonize typography and message rhythm */
+.ant-pro-chat-list-item {
+  padding: 8px 0 !important;
+}
+
+.ant-pro-chat-list-item-message-content {
+  font-size: 16px !important;
+  line-height: 1.7 !important;
+  font-family: var(--mw-font-ui) !important;
+}
+
+.ant-pro-chat-list-item-left .ant-pro-chat-list-item-message-content,
+div[class*="placement-left"] .ant-pro-chat-list-item-message-content {
+  background: transparent !important;
+  color: var(--mw-text-main) !important;
+}
+
+.ant-pro-chat-list-item-right .ant-pro-chat-list-item-message-content,
+div[class*="placement-right"] .ant-pro-chat-list-item-message-content {
+  background: #f3f4f6 !important;
+  color: var(--mw-text-main) !important;
+  border: 1px solid #ebeef2 !important;
+  border-radius: 16px !important;
+  padding: 12px 16px !important;
+  font-size: 16px !important;
+  line-height: 1.7 !important;
+}
+
+.ant-pro-chat-list-item-message-content p,
+.ant-pro-chat-list-item-message-content ul,
+.ant-pro-chat-list-item-message-content ol {
+  margin-bottom: 0.9em !important;
+}
+
+.ant-pro-chat-list-item-message-content pre {
+  border: 1px solid var(--mw-border-softer) !important;
+  border-radius: 12px !important;
+}
+
+.ant-pro-chat-list-item-message-content pre,
+.ant-pro-chat-list-item-message-content code {
+  font-size: 15px !important;
+}
+
+/* Keep selected states clean and subtle */
+.hover\:bg-black\/5:hover {
+  background: #f4f6f9 !important;
+}
+
+.group .hidden.group-hover\:flex .ant-btn {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #9ca3af !important;
+}
+
+.group .hidden.group-hover\:flex .ant-btn:hover {
+  color: #4b5563 !important;
+  background: #f3f4f6 !important;
+}
+
+/* Empty thread: align composer near top like ChatGPT */
+.chat-stage {
+  position: relative;
+}
+
+/* Thinking Process Style - Now targeting a distinct block via class if possible, or fallback */
+/* Since direct HTML injection is failing due to markdown parser stripping/escaping, 
+   we will style the H1/strong text if we can, or just accept the separator.
+   But to really fix this, we need to use a plugin or a custom component.
+   For now, let's just make sure the "Thinking Process" text is distinct.
+*/
+
+/* Custom Markdown Styles for File Preview */
+.prose {
+  font-family: var(--mw-font-ui);
+  color: var(--mw-text-main);
+  line-height: 1.6;
+}
+
+.prose h1 { font-size: 2em; font-weight: 700; margin-top: 1em; margin-bottom: 0.5em; }
+.prose h2 { font-size: 1.5em; font-weight: 600; margin-top: 1em; margin-bottom: 0.5em; }
+.prose h3 { font-size: 1.25em; font-weight: 600; margin-top: 1em; margin-bottom: 0.5em; }
+
+.prose p { margin-bottom: 1em; }
+
+.prose ul, .prose ol { padding-left: 1.5em; margin-bottom: 1em; }
+.prose li { margin-bottom: 0.25em; }
+
+.prose code {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  background: #f3f4f6;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  color: #c7254e;
+  background-color: #f9f2f4;
+}
+
+.prose pre {
+  background: #f6f8fa;
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1em;
+  border: 1px solid #d0d7de;
+}
+
+.prose pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.9em;
+}
+
+.prose blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1em;
+  color: #6b7280;
+  margin-left: 0;
+  margin-bottom: 1em;
+}
+
+.prose a { color: var(--mw-accent); text-decoration: none; }
+.prose a:hover { text-decoration: underline; }
+
+.prose table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
+.prose th, .prose td { border: 1px solid #dfe2e5; padding: 6px 13px; }
+.prose th { background-color: #f6f8fa; font-weight: 600; }
+.prose tr:nth-child(2n) { background-color: #f6f8fa; }
+
+/* Thinking Process - Trae Style Enhancements */
+
+/* Make the Thinking Process container more distinct */
+.thinking-process-container {
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  background-color: transparent !important; /* Let parent or specific internal colors handle it */
+}
+
+/* Tool Call Items - Inner Styling */
+/* Note: Most styling is now handled inline in ThinkingProcess.tsx for better control */
+
+/* Customize the blockquote content (Thoughts) */
+.thinking-process-container blockquote {
+  margin: 6px 0 !important;
+  background: transparent !important;
+  border-left: 2px solid #e5e7eb !important; /* Light gray line */
+  padding-left: 16px !important;
+  color: var(--mw-text-secondary) !important;
+  font-size: 14px !important;
+}
+
+.thinking-process-container blockquote p {
+  margin-bottom: 0.5em !important;
+  font-family: var(--mw-font-ui);
+}
+
+/* Ensure code blocks inside tool calls or thinking are small */
+.thinking-process-container pre {
+  margin: 8px 0 8px 24px !important; /* Indent code blocks */
+  padding: 8px !important;
+  background: #f8fafc !important;
+  border: 1px solid #e1e4e8 !important;
+  border-radius: 6px !important;
+}
+
+.thinking-process-container code {
+  font-size: 12px !important;
+  color: #4b5563 !important;
+  background: rgba(0,0,0,0.03) !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+}

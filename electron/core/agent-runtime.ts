@@ -338,6 +338,11 @@ function summarizeToolEnd(
     const files = Array.isArray(toolResult.files) ? toolResult.files : [];
     details.push(`目录：${String(args.directory ?? ".")}`);
     details.push(`返回：${files.length} 个文件`);
+    if (files.length > 0 && files.length <= 20) {
+      details.push(`文件列表：\n${files.map(f => `  - ${f}`).join('\n')}`);
+    } else if (files.length > 20) {
+      details.push(`文件列表（前20个）：\n${files.slice(0, 20).map(f => `  - ${f}`).join('\n')}\n  ... （共 ${files.length} 个）`);
+    }
   } else if (toolName === "search_files") {
     const files = Array.isArray(toolResult.files) ? toolResult.files : [];
     const hits = Array.isArray(toolResult.hits) ? toolResult.hits : [];
@@ -549,19 +554,21 @@ export async function* runAgentChatStream(payload: {
       if (calls.length > 0) {
         for (const call of calls) {
           thoughtTrace.push(`🔧 调用工具: ${call.name}`);
-          yield { type: "thought", content: [`🔧 调用工具: ${call.name}`] };
 
           const argsObj = safeParseJsonObject(call.arguments);
           const startSummary = summarizeToolStart(call.name, argsObj);
-          const toolStartChunk: ToolStreamChunk = {
-            type: "tool",
-            stage: "start",
-            callId: call.call_id,
-            name: call.name,
-            title: startSummary.title,
-            details: startSummary.details
-          };
-          yield toolStartChunk;
+          if (!toolStartEmitted.has(call.call_id)) {
+            toolStartEmitted.add(call.call_id);
+            const toolStartChunk: ToolStreamChunk = {
+              type: "tool",
+              stage: "start",
+              callId: call.call_id,
+              name: call.name,
+              title: startSummary.title,
+              details: startSummary.details
+            };
+            yield toolStartChunk;
+          }
 
           const startedAt = Date.now();
           let toolResult: any;
