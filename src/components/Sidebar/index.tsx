@@ -7,6 +7,7 @@ import { ChatThread } from '../../types';
 const { Sider } = Layout;
 
 interface SidebarProps {
+  width: number;
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
   setCurrentWorkspace: (w: Workspace) => void;
@@ -36,9 +37,9 @@ interface SidebarProps {
 export default function Sidebar(props: SidebarProps) {
   return (
     <Sider 
-      width={280} 
+      width={props.width}
       theme="light" 
-      style={{ borderRight: '1px solid #f0f0f0' }}
+      style={{ borderRight: '1px solid #f0f0f0', flex: '0 0 auto' }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <WorkspaceSelector 

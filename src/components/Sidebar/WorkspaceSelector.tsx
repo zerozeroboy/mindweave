@@ -83,6 +83,7 @@ export default function WorkspaceSelector({
         {currentWorkspace && (
           <div style={{ marginTop: 16 }}>
             <Segmented
+              className="mw-sidebar-tab-segmented"
               block
               value={sidebarTab}
               onChange={(val) => setSidebarTab(val as 'chat' | 'files')}

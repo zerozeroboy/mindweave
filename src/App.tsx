@@ -1,9 +1,9 @@
 import './App.css'; // Global scrollbar styles
 import { Layout, Button, Modal, Input, message, theme, ConfigProvider } from 'antd';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { ChatMessage, ChatThread } from './types';
 import { DEFAULT_MODEL } from './utils/constants';
-import { uid, threadStorageKey, clampThreads, createEmptyThread, buildUntitledTaskTitle } from './utils/chat';
+import { uid, threadStorageKey, clampThreads } from './utils/chat';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import FilePreviewPanel from './components/ChatArea/FilePreviewPanel';
@@ -43,10 +43,35 @@ export default function App() {
   const [newWorkspaceModel] = useState(DEFAULT_MODEL);
   const [loading, setLoading] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'chat' | 'files'>('chat');
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const raw = localStorage.getItem('mw.sidebar.width');
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) ? parsed : 280;
+  });
+  const [previewWidth, setPreviewWidth] = useState<number>(() => {
+    const raw = localStorage.getItem('mw.preview.width');
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) ? parsed : 520;
+  });
+  const [dragging, setDragging] = useState<'sidebar' | 'preview' | null>(null);
+  const dragStartXRef = useRef(0);
+  const dragStartWidthRef = useRef(0);
 
   const activeThread = useMemo(() => {
-    return threads.find((t) => t.id === activeThreadId) || threads[0] || null;
+    return threads.find((t) => t.id === activeThreadId) || null;
   }, [threads, activeThreadId]);
+
+  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+  const getSidebarBounds = () => {
+    const min = 220;
+    const max = Math.max(min, Math.min(520, Math.floor(window.innerWidth * 0.45)));
+    return { min, max };
+  };
+  const getPreviewBounds = () => {
+    const min = 320;
+    const max = Math.max(min, Math.min(980, Math.floor(window.innerWidth * 0.7)));
+    return { min, max };
+  };
 
   // --- Effects ---
 
@@ -66,16 +91,14 @@ export default function App() {
     try {
       const raw = localStorage.getItem(key);
       if (!raw) {
-        const t = createEmptyThread();
-        setThreads([t]);
-        setActiveThreadId(t.id);
+        setThreads([]);
+        setActiveThreadId("");
         return;
       }
       const parsed = clampThreads(JSON.parse(raw));
       if (!parsed) {
-        const t = createEmptyThread();
-        setThreads([t]);
-        setActiveThreadId(t.id);
+        setThreads([]);
+        setActiveThreadId("");
         return;
       }
       setThreads(parsed.threads);
@@ -85,9 +108,8 @@ export default function App() {
           : parsed.threads[0]?.id ?? ""
       );
     } catch (_err) {
-      const t = createEmptyThread();
-      setThreads([t]);
-      setActiveThreadId(t.id);
+      setThreads([]);
+      setActiveThreadId("");
     }
   }, [currentWorkspace?.name]);
 
@@ -113,6 +135,26 @@ export default function App() {
       loadMirrorDir(".");
     }
   }, [currentWorkspace?.name]);
+
+  useEffect(() => {
+    localStorage.setItem('mw.sidebar.width', String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    localStorage.setItem('mw.preview.width', String(previewWidth));
+  }, [previewWidth]);
+
+  useEffect(() => {
+    const onResize = () => {
+      const sidebarBounds = getSidebarBounds();
+      const previewBounds = getPreviewBounds();
+      setSidebarWidth((prev) => clamp(prev, sidebarBounds.min, sidebarBounds.max));
+      setPreviewWidth((prev) => clamp(prev, previewBounds.min, previewBounds.max));
+    };
+    window.addEventListener('resize', onResize);
+    onResize();
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // --- Logic Helpers ---
 
@@ -236,6 +278,48 @@ export default function App() {
 
   // --- Render Helpers ---
 
+  const startSidebarResize = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    dragStartXRef.current = event.clientX;
+    dragStartWidthRef.current = sidebarWidth;
+    setDragging('sidebar');
+  };
+
+  const startPreviewResize = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    dragStartXRef.current = event.clientX;
+    dragStartWidthRef.current = previewWidth;
+    setDragging('preview');
+  };
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMouseMove = (event: MouseEvent) => {
+      if (dragging === 'sidebar') {
+        const delta = event.clientX - dragStartXRef.current;
+        const next = dragStartWidthRef.current + delta;
+        const bounds = getSidebarBounds();
+        setSidebarWidth(clamp(next, bounds.min, bounds.max));
+        return;
+      }
+      const delta = dragStartXRef.current - event.clientX;
+      const next = dragStartWidthRef.current + delta;
+      const bounds = getPreviewBounds();
+      setPreviewWidth(clamp(next, bounds.min, bounds.max));
+    };
+    const onMouseUp = () => setDragging(null);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [dragging]);
+
   return (
     <ConfigProvider
       theme={{
@@ -250,6 +334,7 @@ export default function App() {
         <TitleBar />
         <Layout className="mw-main-layout" style={{ background: '#fff', overflow: 'hidden' }}>
           <Sidebar
+            width={sidebarWidth}
             workspaces={workspaces}
             currentWorkspace={currentWorkspace}
             setCurrentWorkspace={setCurrentWorkspace}
@@ -267,12 +352,7 @@ export default function App() {
               setActiveThreadId("");
             }}
             onNewChat={() => {
-              setThreads(prev => {
-                const title = buildUntitledTaskTitle(prev.map((t) => t.title));
-                const thread = createEmptyThread(title);
-                setActiveThreadId(thread.id);
-                return [thread, ...prev];
-              });
+              setActiveThreadId("");
             }}
             dirCache={dirCache}
             expandedDirs={expandedDirs}
@@ -281,6 +361,13 @@ export default function App() {
             openFile={openFile}
             onSync={handleSync}
           />
+          <div
+            className={`mw-resize-handle mw-resize-handle-sidebar${dragging === 'sidebar' ? ' is-dragging' : ''}`}
+            onMouseDown={startSidebarResize}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="调整左侧栏宽度"
+          />
 
           <Content style={{ display: 'flex', flexDirection: 'row', height: '100%', overflow: 'hidden' }}>
             {/* Main Chat Area */}
@@ -288,15 +375,29 @@ export default function App() {
               currentWorkspace={currentWorkspace}
               activeThreadId={activeThreadId}
               activeThread={activeThread}
+              threads={threads}
+              setActiveThreadId={setActiveThreadId}
               setThreads={setThreads}
               onToggleWebSearch={handleToggleWebSearch}
             />
 
             {/* File Preview Panel */}
-            <FilePreviewPanel
-              filePreview={filePreview}
-              setFilePreview={setFilePreview}
-            />
+            {filePreview && (
+              <>
+                <div
+                  className={`mw-resize-handle mw-resize-handle-preview${dragging === 'preview' ? ' is-dragging' : ''}`}
+                  onMouseDown={startPreviewResize}
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="调整文件预览宽度"
+                />
+                <FilePreviewPanel
+                  width={previewWidth}
+                  filePreview={filePreview}
+                  setFilePreview={setFilePreview}
+                />
+              </>
+            )}
           </Content>
         </Layout>
       </div>

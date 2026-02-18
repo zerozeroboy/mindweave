@@ -1,26 +1,27 @@
-import { Button, Input, theme } from 'antd';
-import { ArrowUpOutlined, GlobalOutlined } from '@ant-design/icons';
-import { useState } from 'react';
+import { theme } from 'antd';
 import styles from './chatUi.module.css';
+import ChatComposer from './ChatComposer';
 
 interface WelcomeScreenProps {
+  value: string;
+  onChange: (value: string) => void;
   onSend: (message: string) => void;
+  disabled?: boolean;
+  loading?: boolean;
   webSearchEnabled: boolean;
   onToggleWebSearch: (checked: boolean) => void;
 }
 
-export default function WelcomeScreen({ onSend, webSearchEnabled, onToggleWebSearch }: WelcomeScreenProps) {
+export default function WelcomeScreen({
+  value,
+  onChange,
+  onSend,
+  disabled = false,
+  loading = false,
+  webSearchEnabled,
+  onToggleWebSearch
+}: WelcomeScreenProps) {
   const { token } = theme.useToken();
-  const [value, setValue] = useState('');
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (value.trim()) {
-        onSend(value.trim());
-      }
-    }
-  };
 
   return (
     <div style={{ 
@@ -45,40 +46,16 @@ export default function WelcomeScreen({ onSend, webSearchEnabled, onToggleWebSea
       
       <div className={styles.welcomeShell}>
         <div className={styles.welcomeInputShell}>
-          <Input.TextArea
-            size="large"
+          <ChatComposer
             value={value}
-            onChange={e => setValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="给 Agent 发送消息..."
-            bordered={false}
-            autoSize={{ minRows: 1, maxRows: 6 }}
-            className={styles.welcomeInput}
-            style={{ resize: 'none' }}
+            onChange={onChange}
+            onSubmit={onSend}
+            disabled={disabled}
+            loading={loading}
+            webSearchEnabled={webSearchEnabled}
+            onToggleWebSearch={onToggleWebSearch}
+            autoFocus
           />
-
-          <div className={styles.toolbox}>
-            <Button
-              type="text"
-              shape="circle"
-              icon={<GlobalOutlined />}
-              onClick={() => onToggleWebSearch(!webSearchEnabled)}
-              className={`${styles.toolButton} ${webSearchEnabled ? styles.toolButtonActive : ''}`}
-              aria-label="联网搜索"
-              aria-pressed={webSearchEnabled}
-            />
-          </div>
-
-          <div className={styles.welcomeBottomRight}>
-            <Button
-              type="primary"
-              shape="circle"
-              icon={<ArrowUpOutlined style={{ fontSize: 16, fontWeight: 'bold' }} />}
-              disabled={!value.trim()}
-              onClick={() => value.trim() && onSend(value.trim())}
-              className={styles.welcomeSendButton}
-            />
-          </div>
         </div>
       </div>
     </div>

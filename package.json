@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
-    "@ant-design/pro-chat": "^1.15.3",
+    "@ant-design/x": "^1.6.1",
     "@fontsource/fraunces": "^5.2.5",
     "@fontsource/ibm-plex-sans": "^5.2.5",
     "antd": "^5.29.3",

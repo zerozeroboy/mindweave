@@ -150,6 +150,32 @@ body,
   background: var(--mw-bg-page) !important;
 }
 
+.mw-resize-handle {
+  position: relative;
+  width: 8px;
+  min-width: 8px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 20;
+}
+
+.mw-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background-color 120ms ease;
+}
+
+.mw-resize-handle:hover::before,
+.mw-resize-handle.is-dragging::before {
+  background: #d1d5db;
+}
+
 /* Keep sidebar controls lightweight and consistent */
 .ant-layout-sider .ant-btn {
   border-color: var(--mw-border-soft) !important;
@@ -166,70 +192,25 @@ body,
   background: #f2f4f7 !important;
 }
 
-
-.ant-pro-chat-input-actions button[type="submit"]:hover,
-.ant-pro-chat-input-action-send:hover {
-  background: #ebeef3 !important;
-  color: #111827 !important;
-}
-
-/* Harmonize typography and message rhythm */
-.ant-pro-chat-list-item {
-  padding: 8px 0 !important;
-}
-
-.ant-pro-chat-list-item-message-content {
-  font-size: 15px !important;
-  line-height: 1.65 !important;
-  font-family: var(--mw-font-ui) !important;
-}
-
-.ant-pro-chat-list-item-left .ant-pro-chat-list-item-message-content,
-div[class*="placement-left"] .ant-pro-chat-list-item-message-content {
-  background: transparent !important;
-  color: var(--mw-text-main) !important;
-}
-
-.ant-pro-chat-list-item-right .ant-pro-chat-list-item-message-content,
-div[class*="placement-right"] .ant-pro-chat-list-item-message-content {
-  background: #f3f4f6 !important;
-  color: var(--mw-text-main) !important;
-  border: 1px solid #ebeef2 !important;
-  border-radius: 16px !important;
-  padding: 12px 16px !important;
-  font-size: 15px !important;
-  line-height: 1.65 !important;
-}
-
-.ant-pro-chat-list-item-message-content p,
-.ant-pro-chat-list-item-message-content ul,
-.ant-pro-chat-list-item-message-content ol {
-  margin-bottom: 0.9em !important;
-}
-
-.ant-pro-chat-list-item-message-content ul,
-.ant-pro-chat-list-item-message-content ol,
-.ant-pro-chat-list-item-message-content li,
-.ant-pro-chat-list-item-message-content li > p,
-.ant-pro-chat-list-item-message-content li ul,
-.ant-pro-chat-list-item-message-content li ol {
-  font-size: inherit !important;
-  line-height: inherit !important;
-}
-
-.ant-pro-chat-list-item-message-content li > p:last-child {
-  margin-bottom: 0 !important;
-}
-
-.ant-pro-chat-list-item-message-content pre {
-  border: 1px solid var(--mw-border-softer) !important;
+/* Sidebar tab segmented: keep moving thumb rounded during animation */
+.mw-sidebar-tab-segmented.ant-segmented {
   border-radius: 12px !important;
+  overflow: hidden;
 }
 
-.ant-pro-chat-list-item-message-content pre,
-.ant-pro-chat-list-item-message-content code {
-  font-size: 14px !important;
+.mw-sidebar-tab-segmented .ant-segmented-group {
+  border-radius: 10px !important;
 }
+
+.mw-sidebar-tab-segmented .ant-segmented-thumb {
+  border-radius: 10px !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.mw-sidebar-tab-segmented .ant-segmented-item {
+  border-radius: 10px !important;
+}
+
 
 /* Keep selected states clean and subtle */
 .hover\:bg-black\/5:hover {
@@ -327,6 +308,32 @@ div[class*="placement-right"] .ant-pro-chat-list-item-message-content {
 .mw-markdown th, .mw-markdown td { border: 1px solid #dfe2e5; padding: 6px 13px; font-size: 14px; }
 .mw-markdown th { background-color: #f6f8fa; font-weight: 600; font-size: 14px; }
 .mw-markdown tr:nth-child(2n) { background-color: #f6f8fa; }
+
+.mw-file-preview-content {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.mw-file-preview-markdown p,
+.mw-file-preview-markdown li,
+.mw-file-preview-markdown blockquote,
+.mw-file-preview-markdown td,
+.mw-file-preview-markdown th {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.mw-file-preview-markdown code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.mw-file-preview-markdown pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 
 /* Thinking Process - Trae Style Enhancements */
 

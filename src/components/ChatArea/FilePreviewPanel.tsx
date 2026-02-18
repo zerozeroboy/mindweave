@@ -4,11 +4,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface FilePreviewPanelProps {
+  width: number;
   filePreview: MirrorReadFileResult | null;
   setFilePreview: (val: MirrorReadFileResult | null) => void;
 }
 
-export default function FilePreviewPanel({ filePreview, setFilePreview }: FilePreviewPanelProps) {
+export default function FilePreviewPanel({ width, filePreview, setFilePreview }: FilePreviewPanelProps) {
   if (!filePreview) return null;
 
   const isMarkdown = filePreview.path.toLowerCase().endsWith('.md');
@@ -21,9 +22,9 @@ export default function FilePreviewPanel({ filePreview, setFilePreview }: FilePr
 
   return (
     <div style={{ 
-      width: '45%', 
+      width, 
       minWidth: '300px',
-      maxWidth: '800px',
+      maxWidth: '980px',
       borderLeft: '1px solid #e5e7eb', 
       display: 'flex', 
       flexDirection: 'column',
@@ -74,7 +75,7 @@ export default function FilePreviewPanel({ filePreview, setFilePreview }: FilePr
       </div>
       
       {/* Content */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+      <div className="mw-file-preview-content" style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
         {isImage && filePreview.encoding === "base64" && filePreview.mime ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {filePreview.truncated ? (
@@ -89,7 +90,7 @@ export default function FilePreviewPanel({ filePreview, setFilePreview }: FilePr
             />
           </div>
         ) : isMarkdown ? (
-          <div className="mw-markdown max-w-none">
+          <div className="mw-markdown mw-file-preview-markdown max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {content}
             </ReactMarkdown>
@@ -100,7 +101,8 @@ export default function FilePreviewPanel({ filePreview, setFilePreview }: FilePr
             margin: 0, 
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
             whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
+            wordBreak: 'break-word',
+            overflowWrap: 'anywhere',
             color: '#374151',
             lineHeight: 1.6
           }}>
