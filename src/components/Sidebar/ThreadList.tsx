@@ -70,8 +70,8 @@ export default function ThreadList({
                 key={t.id}
                 style={{
                   padding: '8px 12px', cursor: 'pointer',
-                  background: activeThreadId === t.id ? '#e6f7ff' : 'transparent',
-                  borderRight: activeThreadId === t.id ? '2px solid #1890ff' : 'none',
+                  background: activeThreadId === t.id ? '#f3f4f6' : 'transparent',
+                  borderRight: activeThreadId === t.id ? '2px solid #111111' : 'none',
                   position: 'relative'
                 }}
                 className="hover:bg-black/5 group"

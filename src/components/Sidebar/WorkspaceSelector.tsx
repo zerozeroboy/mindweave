@@ -4,9 +4,9 @@ import {
   DownOutlined,
   SyncOutlined,
   FolderOpenOutlined,
-  MessageOutlined,
-  RobotOutlined
+  MessageOutlined
 } from '@ant-design/icons';
+import mwLogo from '../../assets/mw-logo.svg';
 
 interface WorkspaceSelectorProps {
   workspaces: Workspace[];
@@ -32,22 +32,29 @@ export default function WorkspaceSelector({
   return (
     <>
       <div style={{ padding: '20px 16px 0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 18, display: 'flex', alignItems: 'center', gap: 8, color: '#1677ff' }}>
-          <RobotOutlined style={{ fontSize: 20 }} /> MindWeave
+        <div style={{ fontWeight: 700, fontSize: 18, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mw-accent)' }}>
+          <img src={mwLogo} alt="MindWeave Logo" style={{ width: 24, height: 24, borderRadius: 6, display: 'block' }} />
+          MindWeave
         </div>
-        <Tooltip title="创建新工作空间">
-          <Button type="text" icon={<PlusOutlined />} onClick={onOpenCreateModal} />
-        </Tooltip>
       </div>
 
       <div style={{ padding: '16px', flexShrink: 0 }}>
         <Dropdown
           menu={{
-            items: workspaces.map(w => ({
-              key: w.name,
-              label: w.name,
-              onClick: () => setCurrentWorkspace(w)
-            }))
+            items: [
+              {
+                key: '__create_workspace__',
+                label: '新建工作空间',
+                icon: <PlusOutlined />,
+                onClick: onOpenCreateModal
+              },
+              ...(workspaces.length > 0 ? [{ type: 'divider' as const }] : []),
+              ...workspaces.map(w => ({
+                key: w.name,
+                label: w.name,
+                onClick: () => setCurrentWorkspace(w)
+              }))
+            ]
           }}
         >
           <Button block size="large" style={{ textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -82,7 +89,7 @@ export default function WorkspaceSelector({
                   icon={<PlusOutlined />} 
                   onClick={onNewChat} 
                   block 
-                  style={{ borderRadius: '8px', boxShadow: '0 2px 0 rgba(5, 145, 255, 0.1)' }}
+                  style={{ borderRadius: '8px', boxShadow: '0 2px 0 rgba(17, 17, 17, 0.15)' }}
                 >
                   新建对话
                 </Button>

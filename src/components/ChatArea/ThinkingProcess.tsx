@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { CaretRightOutlined, CaretDownOutlined, LoadingOutlined, CheckCircleOutlined, FileSearchOutlined, EditOutlined, CodeOutlined, ToolOutlined } from '@ant-design/icons';
+import { CaretRightOutlined, CaretDownOutlined, LoadingOutlined, FileSearchOutlined, EditOutlined, CodeOutlined, ToolOutlined } from '@ant-design/icons';
 import { theme } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThinkingEvent } from '../../types';
@@ -74,7 +74,7 @@ export default function ThinkingProcess({ events, status = 'active' }: ThinkingP
            {isCollapsed ? <CaretRightOutlined style={{ fontSize: 12 }} /> : <CaretDownOutlined style={{ fontSize: 12 }} />}
         </div>
         
-        <div style={{ flex: 1, fontWeight: 600, fontSize: '13px', color: token.colorText, fontFamily: 'var(--mw-font-ui)' }}>
+        <div style={{ flex: 1, fontWeight: 600, fontSize: '14px', color: token.colorText, fontFamily: 'var(--mw-font-ui)' }}>
           {status === 'active' ? 'Thinking Process...' : 'Thinking Process'}
         </div>
 
@@ -102,7 +102,7 @@ export default function ThinkingProcess({ events, status = 'active' }: ThinkingP
                 padding: '12px',
                 maxHeight: '300px', // Limit height for long thoughts
                 overflowY: 'auto',
-                fontSize: '13px',
+                fontSize: '14px',
                 lineHeight: 1.6,
                 color: token.colorTextSecondary,
                 fontFamily: 'var(--mw-font-ui)',
@@ -152,7 +152,7 @@ export default function ThinkingProcess({ events, status = 'active' }: ThinkingP
                         </div>
                         {/* Details/Preview */}
                         {(event.toolDetails || event.toolPreview) && (
-                          <div style={{ paddingLeft: 28, marginTop: 4, fontSize: 12 }}>
+                          <div style={{ paddingLeft: 28, marginTop: 4, fontSize: 14 }}>
                              {event.toolDetails && event.toolDetails.map((d, i) => (
                                <div key={i} style={{ opacity: 0.8 }}>- {d}</div>
                              ))}

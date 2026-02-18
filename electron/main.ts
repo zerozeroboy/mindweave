@@ -24,6 +24,9 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1320,
     height: 860,
+    frame: true,
+    titleBarStyle: "default",
+    titleBarOverlay: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,

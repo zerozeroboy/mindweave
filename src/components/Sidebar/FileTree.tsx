@@ -38,7 +38,7 @@ export default function FileTree({
           onClick={() => toggleDir(dirPath)}
         >
           <span style={{ marginRight: 4, fontSize: 10, color: '#999' }}>{expanded ? '▼' : '▶'}</span>
-          <FolderOpenOutlined style={{ marginRight: 6, color: '#1890ff' }} />
+          <FolderOpenOutlined style={{ marginRight: 6, color: 'var(--mw-accent)' }} />
           <span style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {isRoot ? 'Root' : dirPath.split('/').pop()}
           </span>
@@ -55,8 +55,8 @@ export default function FileTree({
               style={{
                 display: 'flex', alignItems: 'center', padding: '4px 8px', cursor: 'pointer',
                 paddingLeft: indent + 12,
-                background: isActive ? '#e6f7ff' : 'transparent',
-                color: isActive ? '#1890ff' : 'inherit'
+                background: isActive ? '#f3f4f6' : 'transparent',
+                color: isActive ? 'var(--mw-accent)' : 'inherit'
               }}
               className="hover:bg-black/5"
               onClick={() => openFile(ent.path)}

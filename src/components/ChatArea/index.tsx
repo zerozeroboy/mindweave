@@ -368,7 +368,7 @@ export default function ChatArea({
           assistantMeta={{
             avatar: '',
             title: '',
-            backgroundColor: "#1890ff",
+            backgroundColor: "#111111",
           }}
           userMeta={{
             avatar: '',

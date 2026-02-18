@@ -238,7 +238,15 @@ export default function App() {
   // --- Render Helpers ---
 
   return (
-    <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
+    <ConfigProvider
+      theme={{
+        algorithm: theme.defaultAlgorithm,
+        token: {
+          colorPrimary: '#111111',
+          colorLink: '#111111'
+        }
+      }}
+    >
       <Layout style={{ height: '100vh', background: '#fff', overflow: 'hidden' }}>
         <Sidebar 
           workspaces={workspaces}
