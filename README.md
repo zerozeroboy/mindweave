@@ -1,4 +1,4 @@
-# MindWeave（AgentOS）
+# MindWeave
 
 MindWeave 是一个本地运行的 Agent 操作系统：把本地目录转换为可检索的 Markdown 镜像知识空间，并通过对话驱动 Agent 完成查询、修改与生成。
 
