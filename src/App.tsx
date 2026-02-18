@@ -1,18 +1,17 @@
-import { ProChat } from '@ant-design/pro-chat';
 import './App.css'; // Global scrollbar styles
-import { Layout, Button, Dropdown, Modal, Input, message, theme, ConfigProvider, Empty, Tooltip, Segmented } from 'antd';
-import { DeleteOutlined } from '@ant-design/icons';
+import { Layout, Button, Modal, Input, message, theme, ConfigProvider } from 'antd';
 import { useState, useEffect, useMemo } from 'react';
 import { ChatMessage, ChatThread } from './types';
 import { DEFAULT_MODEL } from './utils/constants';
-import { uid, threadStorageKey, clampThreads, createEmptyThread } from './utils/chat';
+import { uid, threadStorageKey, clampThreads, createEmptyThread, buildUntitledTaskTitle } from './utils/chat';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import FilePreviewPanel from './components/ChatArea/FilePreviewPanel';
 import { useFilePreview } from './hooks/useFilePreview';
 import { getBackend } from './backend';
+import TitleBar from './components/WindowChrome/TitleBar';
 
-const { Sider, Content } = Layout;
+const { Content } = Layout;
 
 // --- Types & Constants moved to ./types and ./utils ---
 
@@ -213,9 +212,9 @@ export default function App() {
   const handleDeleteThread = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     Modal.confirm({
-      title: '删除对话',
+      title: '删除任务',
       centered: true,
-      content: '确定要删除这个对话吗？',
+      content: '确定要删除这个任务吗？',
       onOk: () => {
         setThreads(prev => {
           const next = prev.filter(t => t.id !== id);
@@ -247,54 +246,60 @@ export default function App() {
         }
       }}
     >
-      <Layout style={{ height: '100vh', background: '#fff', overflow: 'hidden' }}>
-        <Sidebar 
-          workspaces={workspaces}
-          currentWorkspace={currentWorkspace}
-          setCurrentWorkspace={setCurrentWorkspace}
-          isModalOpen={isModalOpen}
-          setIsModalOpen={setIsModalOpen}
-          sidebarTab={sidebarTab}
-          setSidebarTab={setSidebarTab}
-          threads={threads}
-          activeThreadId={activeThreadId}
-          setActiveThreadId={setActiveThreadId}
-          handleRenameThread={handleRenameThread}
-          handleDeleteThread={handleDeleteThread}
-          onClearThreads={() => {
-             setThreads([]);
-             setActiveThreadId("");
-          }}
-          onNewChat={() => {
-            const t = createEmptyThread();
-            setThreads(prev => [t, ...prev]);
-            setActiveThreadId(t.id);
-          }}
-          dirCache={dirCache}
-          expandedDirs={expandedDirs}
-          toggleDir={toggleDir}
-          selectedFile={selectedFile}
-          openFile={openFile}
-          onSync={handleSync}
-        />
-
-        <Content style={{ display: 'flex', flexDirection: 'row', height: '100vh', overflow: 'hidden' }}>
-          {/* Main Chat Area */}
-          <ChatArea 
+      <div className="mw-shell">
+        <TitleBar />
+        <Layout className="mw-main-layout" style={{ background: '#fff', overflow: 'hidden' }}>
+          <Sidebar
+            workspaces={workspaces}
             currentWorkspace={currentWorkspace}
+            setCurrentWorkspace={setCurrentWorkspace}
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
+            sidebarTab={sidebarTab}
+            setSidebarTab={setSidebarTab}
+            threads={threads}
             activeThreadId={activeThreadId}
-            activeThread={activeThread}
-            setThreads={setThreads}
-            onToggleWebSearch={handleToggleWebSearch}
+            setActiveThreadId={setActiveThreadId}
+            handleRenameThread={handleRenameThread}
+            handleDeleteThread={handleDeleteThread}
+            onClearThreads={() => {
+              setThreads([]);
+              setActiveThreadId("");
+            }}
+            onNewChat={() => {
+              setThreads(prev => {
+                const title = buildUntitledTaskTitle(prev.map((t) => t.title));
+                const thread = createEmptyThread(title);
+                setActiveThreadId(thread.id);
+                return [thread, ...prev];
+              });
+            }}
+            dirCache={dirCache}
+            expandedDirs={expandedDirs}
+            toggleDir={toggleDir}
+            selectedFile={selectedFile}
+            openFile={openFile}
+            onSync={handleSync}
           />
-          
-          {/* File Preview Panel */}
-          <FilePreviewPanel 
-            filePreview={filePreview}
-            setFilePreview={setFilePreview}
-          />
-        </Content>
-      </Layout>
+
+          <Content style={{ display: 'flex', flexDirection: 'row', height: '100%', overflow: 'hidden' }}>
+            {/* Main Chat Area */}
+            <ChatArea
+              currentWorkspace={currentWorkspace}
+              activeThreadId={activeThreadId}
+              activeThread={activeThread}
+              setThreads={setThreads}
+              onToggleWebSearch={handleToggleWebSearch}
+            />
+
+            {/* File Preview Panel */}
+            <FilePreviewPanel
+              filePreview={filePreview}
+              setFilePreview={setFilePreview}
+            />
+          </Content>
+        </Layout>
+      </div>
 
       {/* Create Workspace Modal */}
       <Modal 

@@ -1,4 +1,5 @@
-import { Button, Modal } from 'antd';
+import { useState } from 'react';
+import { Button, Input, Modal } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { ChatThread } from '../../types';
 
@@ -19,6 +20,8 @@ export default function ThreadList({
   handleDeleteThread,
   onClearThreads
 }: ThreadListProps) {
+  const [renameTarget, setRenameTarget] = useState<ChatThread | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   // Group threads by date
   const groups = (() => {
@@ -47,13 +50,13 @@ export default function ThreadList({
   return (
     <div style={{ flex: 1, overflowY: 'auto', borderBottom: '1px solid #f0f0f0' }}>
       <div style={{ padding: '8px 12px', fontSize: 13, color: '#999', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>对话历史</span>
+        <span>任务历史</span>
         {threads.length > 0 && (
            <Button size="small" type="text" danger onClick={() => {
              Modal.confirm({
-               title: '清空对话',
+               title: '清空任务',
                centered: true,
-               content: '确定要清空所有对话吗？',
+               content: '确定要清空所有任务吗？',
                onOk: onClearThreads
              });
            }} style={{ fontSize: 11 }}>清空</Button>
@@ -84,8 +87,8 @@ export default function ThreadList({
                   <div className="hidden group-hover:flex" style={{ gap: 2 }}>
                      <Button size="small" type="text" icon={<EditOutlined style={{ fontSize: 12 }} />} onClick={(e) => {
                        e.stopPropagation();
-                       const newName = prompt("重命名对话", t.title);
-                       if (newName) handleRenameThread(t.id, newName);
+                       setRenameTarget(t);
+                       setRenameValue(t.title);
                      }} />
                      <Button size="small" type="text" danger icon={<DeleteOutlined style={{ fontSize: 12 }} />} onClick={(e) => handleDeleteThread(e, t.id)} />
                   </div>
@@ -98,6 +101,41 @@ export default function ThreadList({
           </div>
         );
       })}
+
+      <Modal
+        title="重命名任务"
+        centered
+        open={Boolean(renameTarget)}
+        onCancel={() => {
+          setRenameTarget(null);
+          setRenameValue('');
+        }}
+        onOk={() => {
+          if (!renameTarget) return;
+          const nextName = renameValue.trim();
+          if (!nextName) return;
+          handleRenameThread(renameTarget.id, nextName);
+          setRenameTarget(null);
+          setRenameValue('');
+        }}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Input
+          autoFocus
+          placeholder="请输入任务名称"
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onPressEnter={() => {
+            if (!renameTarget) return;
+            const nextName = renameValue.trim();
+            if (!nextName) return;
+            handleRenameThread(renameTarget.id, nextName);
+            setRenameTarget(null);
+            setRenameValue('');
+          }}
+        />
+      </Modal>
     </div>
   );
 }

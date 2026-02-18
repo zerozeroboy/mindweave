@@ -3,7 +3,7 @@ import { ProChat } from '@ant-design/pro-chat';
 import { Button } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
 import { ChatMessage, ChatThread, ThinkingEvent } from '../../types';
-import { uid, toConversationHistory } from '../../utils/chat';
+import { uid, toConversationHistory, deriveTaskTitleFromMessage, ensureUniqueTaskTitle, isAutoTaskTitle } from '../../utils/chat';
 import WelcomeScreen from './WelcomeScreen';
 import ThinkingProcess from './ThinkingProcess';
 import { getBackend } from '../../backend';
@@ -76,6 +76,21 @@ export default function ChatArea({
     const userId = latestUser?.id ? String(latestUser.id) : uid();
     const userContentRaw = latestUser?.content;
     const userContent = typeof userContentRaw === 'string' ? userContentRaw : String(userContentRaw ?? '');
+
+    setThreads(prev => {
+      const target = prev.find((t) => t.id === activeThreadId);
+      if (!target) return prev;
+      if (!isAutoTaskTitle(target.title)) return prev;
+
+      const nextTitle = ensureUniqueTaskTitle(
+        deriveTaskTitleFromMessage(userContent),
+        prev.filter((t) => t.id !== activeThreadId).map((t) => t.title)
+      );
+      if (nextTitle === target.title) return prev;
+
+      return prev.map((t) => (t.id === activeThreadId ? { ...t, title: nextTitle, updatedAt: Date.now() } : t));
+    });
+
     const assistantId = `assistant_${userId}`;
     setStreamingAssistantId(assistantId);
 
@@ -293,7 +308,7 @@ export default function ChatArea({
   if (!activeThreadId) {
     return (
       <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#ccc' }}>
-        请选择或创建一个对话
+        请选择或创建一个任务
       </div>
     );
   }

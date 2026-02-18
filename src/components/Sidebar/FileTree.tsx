@@ -34,11 +34,11 @@ export default function FileTree({
             display: 'flex', alignItems: 'center', padding: '4px 8px', cursor: 'pointer',
             paddingLeft: indent,
           }}
-          className="hover:bg-black/5"
+          className="mw-filetree-row hover:bg-black/5"
           onClick={() => toggleDir(dirPath)}
         >
           <span style={{ marginRight: 4, fontSize: 10, color: '#999' }}>{expanded ? '▼' : '▶'}</span>
-          <FolderOpenOutlined style={{ marginRight: 6, color: 'var(--mw-accent)' }} />
+          <FolderOpenOutlined className="mw-filetree-icon mw-filetree-icon-folder" style={{ marginRight: 6 }} />
           <span style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {isRoot ? 'Root' : dirPath.split('/').pop()}
           </span>
@@ -55,13 +55,11 @@ export default function FileTree({
               style={{
                 display: 'flex', alignItems: 'center', padding: '4px 8px', cursor: 'pointer',
                 paddingLeft: indent + 12,
-                background: isActive ? '#f3f4f6' : 'transparent',
-                color: isActive ? 'var(--mw-accent)' : 'inherit'
               }}
-              className="hover:bg-black/5"
+              className={`mw-filetree-row hover:bg-black/5 ${isActive ? 'mw-filetree-item-active' : ''}`}
               onClick={() => openFile(ent.path)}
             >
-              <FileOutlined style={{ marginRight: 6, fontSize: 12 }} />
+              <FileOutlined className="mw-filetree-icon mw-filetree-icon-file" style={{ marginRight: 6, fontSize: 12 }} />
               <span style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {ent.name}
               </span>
@@ -75,8 +73,8 @@ export default function FileTree({
   if (!currentWorkspaceName) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="未加载" />;
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: '#fafafa' }}>
-      <div style={{ padding: '8px 12px', fontSize: 13, color: '#999', fontWeight: 600, position: 'sticky', top: 0, background: '#fafafa', zIndex: 1 }}>
+    <div className="mw-filetree" style={{ flex: 1, overflowY: 'auto' }}>
+      <div className="mw-filetree-header" style={{ padding: '8px 12px', fontSize: 13, color: '#999', fontWeight: 600, position: 'sticky', top: 0, zIndex: 1 }}>
         文件浏览
       </div>
       {renderFileTree(".", 0)}

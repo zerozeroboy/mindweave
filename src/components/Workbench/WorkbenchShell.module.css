@@ -1,0 +1,239 @@
+.root {
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background: var(--mw-bg-page);
+}
+
+.titlebar {
+  height: var(--mw-size-titlebar);
+  display: grid;
+  grid-template-columns:
+    var(--mw-title-left)
+    1fr
+    var(--mw-title-right)
+    var(--mw-window-dock);
+  min-width: 0;
+  background: transparent;
+  -webkit-app-region: drag;
+  position: relative;
+}
+
+.titlebar::before,
+.titlebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--mw-size-border);
+  background: var(--mw-border-soft);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.titlebar::before {
+  left: var(--mw-title-left);
+  opacity: var(--mw-left-divider-visible, 1);
+}
+
+.titlebar::after {
+  right: calc(var(--mw-window-dock) + var(--mw-right-effective) + (var(--mw-right-splitter) / 2));
+  opacity: var(--mw-right-divider-visible, 1);
+}
+
+.titleSegment {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 var(--mw-space-8);
+  background: transparent;
+}
+
+.titleSegmentLeft {
+  gap: var(--mw-space-6);
+  padding-right: var(--mw-space-8);
+  justify-content: flex-start;
+  background: var(--mw-bg-panel);
+}
+
+.titleSegmentLeftCollapsed {
+  background: var(--mw-bg-page);
+}
+
+.titleSegmentCenter {
+  flex: 1 1 auto;
+  justify-content: space-between;
+  gap: var(--mw-space-8);
+  background: var(--mw-bg-page);
+}
+
+.titleSegmentCenterLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--mw-space-2);
+  min-width: 0;
+}
+
+.expandButton {
+  opacity: 0.7;
+}
+
+.expandButton:hover {
+  opacity: 1;
+}
+
+.titleSegmentRight {
+  justify-content: flex-end;
+  gap: var(--mw-space-4);
+  padding-right: var(--mw-space-4);
+  background: var(--mw-bg-panel);
+  min-width: 0;
+}
+
+.titleSegmentRightCollapsed {
+  background: var(--mw-bg-page);
+}
+
+.windowControls {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+.windowDock {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 var(--mw-space-8) 0 var(--mw-space-2);
+  pointer-events: auto;
+  background: transparent;
+}
+
+.windowDock::before {
+  content: '';
+  display: block;
+  width: var(--mw-size-border);
+  height: 18px;
+  background: var(--mw-border-soft);
+  margin-right: var(--mw-space-4);
+}
+
+.windowControls :global(.ant-btn) {
+  opacity: 1;
+  color: var(--mw-text-main);
+}
+
+.windowControls :global(.ant-btn:hover) {
+  background: var(--mw-bg-hover);
+}
+
+.bodyGrid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns:
+    var(--mw-left-effective)
+    var(--mw-left-splitter)
+    1fr
+    var(--mw-right-splitter)
+    var(--mw-right-effective);
+  overflow: hidden;
+}
+
+.cell {
+  min-width: 0;
+  min-height: 0;
+}
+
+.logo {
+  width: var(--mw-size-logo);
+  height: var(--mw-size-logo);
+  border-radius: var(--mw-radius-6);
+  background: var(--mw-logo-bg);
+  color: var(--mw-logo-fg);
+  display: grid;
+  place-items: center;
+  font-size: var(--mw-logo-font-size);
+  font-weight: var(--mw-logo-font-weight);
+  letter-spacing: var(--mw-logo-letter-spacing);
+}
+
+.workspaceButton {
+  max-width: var(--mw-max-workspace-label);
+  padding-inline: var(--mw-space-8);
+  display: flex;
+  align-items: center;
+  gap: var(--mw-space-6);
+}
+
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caret {
+  font-size: var(--mw-size-icon-xs);
+  color: var(--mw-text-tertiary);
+}
+
+.splitter {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+  background: var(--mw-bg-subtle);
+}
+
+.splitter::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: var(--mw-size-border);
+  transform: translateX(-50%);
+  background: var(--mw-border-soft);
+}
+
+.splitterActive::before {
+  background: var(--mw-splitter-hover);
+}
+
+.splitterDisabled {
+  cursor: default;
+}
+
+.splitterDisabled::before {
+  background: var(--mw-border-soft);
+}
+
+.bodyCell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panelCell {
+  background: var(--mw-bg-panel);
+}
+
+.centerCell {
+  background: var(--mw-bg-page);
+}
+
+.panelInner {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

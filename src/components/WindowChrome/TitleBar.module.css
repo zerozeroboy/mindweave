@@ -1,0 +1,70 @@
+.titleBar {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--mw-border-soft);
+  background: #f8f9fb;
+  -webkit-app-region: drag;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--mw-text-main);
+  letter-spacing: 0.2px;
+}
+
+.logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  display: block;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.windowControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.windowControlBtn {
+  width: 46px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #4b5563;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.windowControlBtn:hover {
+  background: #eceff4;
+  color: #111827;
+}
+
+.windowControlBtnClose:hover {
+  background: #e5484d;
+  color: #ffffff;
+}
+
+.windowControlIcon {
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 800;
+}

@@ -256,6 +256,10 @@
   margin-bottom: 1.25em !important;
 }
 
+.proChatRoot :global(.ant-pro-chat-list-item-message-content p:last-child) {
+  margin-bottom: 0 !important;
+}
+
 .proChatRoot :global(.ant-pro-chat-list-item-message-content h1),
 .proChatRoot :global(.ant-pro-chat-list-item-message-content h2),
 .proChatRoot :global(.ant-pro-chat-list-item-message-content h3),
@@ -270,18 +274,43 @@
 .proChatRoot :global(.ant-pro-chat-list-item-message-content ol) {
   margin-bottom: 1.25em !important;
   padding-left: 1.5em !important;
-  font-size: 18px !important;
-  line-height: 1.6 !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
 }
 
 .proChatRoot :global(.ant-pro-chat-list-item-message-content li) {
   margin-bottom: 0.5em !important;
-  font-size: 18px !important;
-  line-height: 1.6 !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.proChatRoot :global(.ant-pro-chat-list-item-message-content li > p) {
+  margin: 0 0 0.5em 0 !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.proChatRoot :global(.ant-pro-chat-list-item-message-content li > p:last-child) {
+  margin-bottom: 0 !important;
 }
 
 .proChatRoot :global(.ant-pro-chat-list-item-message-content li ul),
 .proChatRoot :global(.ant-pro-chat-list-item-message-content li ol) {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.proChatRoot :global(.ant-pro-chat-list-item-message-content strong),
+.proChatRoot :global(.ant-pro-chat-list-item-message-content b),
+.proChatRoot :global(.ant-pro-chat-list-item-message-content em) {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.proChatRoot :global(.ant-pro-chat-list-item-message-content ul ul),
+.proChatRoot :global(.ant-pro-chat-list-item-message-content ul ol),
+.proChatRoot :global(.ant-pro-chat-list-item-message-content ol ul),
+.proChatRoot :global(.ant-pro-chat-list-item-message-content ol ol) {
   font-size: inherit !important;
   line-height: inherit !important;
 }

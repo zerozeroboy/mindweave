@@ -80,6 +80,14 @@ type ElectronApi = {
   onChatStreamChunk: (callback: (chunk: StreamChunk) => void) => () => void;
   onChatStreamError: (callback: (error: { message: string }) => void) => () => void;
   clearChat: (workspaceName: string) => Promise<boolean>;
+  windowMinimize: () => Promise<void>;
+  windowToggleMaximize: () => Promise<boolean>;
+  windowClose: () => Promise<void>;
+  minimizeWindow: () => Promise<void>;
+  toggleMaximizeWindow: () => Promise<boolean>;
+  closeWindow: () => Promise<void>;
+  isWindowMaximized: () => Promise<boolean>;
+  onWindowMaximizedChanged: (callback: (maximized: boolean) => void) => () => void;
 };
 
 interface Window {

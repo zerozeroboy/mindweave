@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, type NativeImage } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,14 +19,78 @@ fs.mkdirSync(diskCachePath, { recursive: true });
 app.setPath("userData", userDataPath);
 app.setPath("sessionData", sessionDataPath);
 app.commandLine.appendSwitch("disk-cache-dir", diskCachePath);
+app.setAppUserModelId("com.mindweave.desktop");
+
+function resolveWindowIcon(): string | NativeImage | undefined {
+  const svgCandidates = [
+    path.join(__dirname, "..", "src", "assets", "mw-logo.svg")
+  ];
+  for (const svgPath of svgCandidates) {
+    if (!fs.existsSync(svgPath)) continue;
+    try {
+      const svgContent = fs.readFileSync(svgPath, "utf8");
+      const encodedSvg = encodeURIComponent(svgContent);
+      const image = nativeImage.createFromDataURL(`data:image/svg+xml;utf8,${encodedSvg}`);
+      if (!image.isEmpty()) {
+        return image;
+      }
+    } catch {
+      // ignore invalid or unreadable svg and continue fallback
+    }
+  }
+
+  const candidates = [
+    path.join(__dirname, "..", "assets", "app-icon.ico"),
+    path.join(__dirname, "..", "assets", "app-icon.png"),
+    path.join(__dirname, "..", "src", "assets", "mw-logo.ico"),
+    path.join(__dirname, "..", "src", "assets", "mw-logo.png")
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+function registerWindowControlsIpc() {
+  ipcMain.handle("window:minimize", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    win?.minimize();
+  });
+
+  ipcMain.handle("window:maximize-toggle", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return false;
+    if (win.isMaximized()) {
+      win.unmaximize();
+      return false;
+    }
+    win.maximize();
+    return true;
+  });
+
+  ipcMain.handle("window:close", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    win?.close();
+  });
+
+  ipcMain.handle("window:is-maximized", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return Boolean(win?.isMaximized());
+  });
+}
 
 function createWindow() {
+  const icon = resolveWindowIcon();
   const win = new BrowserWindow({
     width: 1320,
     height: 860,
-    frame: true,
-    titleBarStyle: "default",
-    titleBarOverlay: false,
+    minWidth: 1080,
+    minHeight: 700,
+    frame: false,
+    autoHideMenuBar: true,
+    ...(icon ? { icon } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -34,12 +98,17 @@ function createWindow() {
     }
   });
 
+  Menu.setApplicationMenu(null);
+  win.setMenuBarVisibility(false);
+  win.on("maximize", () => win.webContents.send("window:maximized-changed", true));
+  win.on("unmaximize", () => win.webContents.send("window:maximized-changed", false));
   win.loadURL("http://127.0.0.1:5173");
 }
 
 app.whenReady().then(() => {
   registerWorkspaceIpc();
   registerAgentIpc();
+  registerWindowControlsIpc();
   createWindow();
 });
 

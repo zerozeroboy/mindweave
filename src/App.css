@@ -86,12 +86,54 @@
   --mw-font-ui: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif;
 }
 
+.mw-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--mw-bg-page);
+}
+
+.mw-main-layout {
+  height: calc(100vh - 44px);
+  min-height: 0;
+}
+
 html,
 body,
 #root {
   background: var(--mw-bg-page) !important;
   color: var(--mw-text-main);
   font-family: var(--mw-font-ui) !important;
+}
+
+.mw-filetree {
+  background: var(--mw-bg-panel);
+}
+
+.mw-filetree-header {
+  background: var(--mw-bg-panel);
+  border-bottom: 1px solid var(--mw-border-softer);
+}
+
+.mw-filetree-row {
+  color: var(--mw-text-main);
+}
+
+.mw-filetree .mw-filetree-icon {
+  color: var(--mw-text-secondary) !important;
+}
+
+.mw-filetree .mw-filetree-icon-folder {
+  color: var(--mw-accent) !important;
+}
+
+.mw-filetree .mw-filetree-item-active {
+  background: var(--mw-accent-soft) !important;
+  color: var(--mw-accent) !important;
+}
+
+.mw-filetree .mw-filetree-item-active .mw-filetree-icon {
+  color: var(--mw-accent) !important;
 }
 
 .ant-layout {
@@ -165,6 +207,20 @@ div[class*="placement-right"] .ant-pro-chat-list-item-message-content {
   margin-bottom: 0.9em !important;
 }
 
+.ant-pro-chat-list-item-message-content ul,
+.ant-pro-chat-list-item-message-content ol,
+.ant-pro-chat-list-item-message-content li,
+.ant-pro-chat-list-item-message-content li > p,
+.ant-pro-chat-list-item-message-content li ul,
+.ant-pro-chat-list-item-message-content li ol {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.ant-pro-chat-list-item-message-content li > p:last-child {
+  margin-bottom: 0 !important;
+}
+
 .ant-pro-chat-list-item-message-content pre {
   border: 1px solid var(--mw-border-softer) !important;
   border-radius: 12px !important;
@@ -219,6 +275,16 @@ div[class*="placement-right"] .ant-pro-chat-list-item-message-content {
 
 .mw-markdown ul, .mw-markdown ol { padding-left: 1.5em; margin-bottom: 1em; }
 .mw-markdown li { margin-bottom: 0.22em; }
+.mw-markdown ul,
+.mw-markdown ol,
+.mw-markdown li,
+.mw-markdown li > p,
+.mw-markdown li ul,
+.mw-markdown li ol {
+  font-size: inherit;
+  line-height: inherit;
+}
+.mw-markdown li > p:last-child { margin-bottom: 0; }
 
 .mw-markdown code {
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;

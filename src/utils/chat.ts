@@ -1,6 +1,8 @@
 import { ChatMessage, ChatThread } from '../types';
 import { THREAD_STORAGE_VERSION } from './constants';
 
+export const UNTITLED_TASK_TITLE = '未命名任务';
+
 export function uid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -16,7 +18,7 @@ export function threadStorageKey(workspaceName: string) {
   return `agentos:threads:v${THREAD_STORAGE_VERSION}:${workspaceName}`;
 }
 
-export function createEmptyThread(title = "新对话"): ChatThread {
+export function createEmptyThread(title = UNTITLED_TASK_TITLE): ChatThread {
   const now = Date.now();
   return {
     id: uid(),
@@ -25,6 +27,48 @@ export function createEmptyThread(title = "新对话"): ChatThread {
     updatedAt: now,
     messages: []
   };
+}
+
+function normalizeTitle(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function buildUntitledTaskTitle(existingTitles: string[]): string {
+  const normalized = new Set(existingTitles.map(normalizeTitle));
+  if (!normalized.has(UNTITLED_TASK_TITLE)) return UNTITLED_TASK_TITLE;
+  let n = 2;
+  while (normalized.has(`${UNTITLED_TASK_TITLE}-${n}`)) n += 1;
+  return `${UNTITLED_TASK_TITLE}-${n}`;
+}
+
+export function isAutoTaskTitle(title: string): boolean {
+  const t = normalizeTitle(title);
+  return (
+    new RegExp(`^${escapeRegExp(UNTITLED_TASK_TITLE)}(?:-\\d+)?$`).test(t) ||
+    /^新对话(?:-\d+)?$/.test(t) ||
+    /^新任务(?:-\d+)?$/.test(t)
+  );
+}
+
+export function deriveTaskTitleFromMessage(content: string, maxLength = 18): string {
+  const normalized = normalizeTitle(content)
+    .replace(/[“”"'`]/g, '')
+    .replace(/[。！？!?；;,.，、]+$/g, '');
+  if (!normalized) return UNTITLED_TASK_TITLE;
+  return normalized.slice(0, maxLength);
+}
+
+export function ensureUniqueTaskTitle(base: string, existingTitles: string[]): string {
+  const normalizedBase = normalizeTitle(base) || UNTITLED_TASK_TITLE;
+  const normalized = new Set(existingTitles.map(normalizeTitle));
+  if (!normalized.has(normalizedBase)) return normalizedBase;
+  let n = 2;
+  while (normalized.has(`${normalizedBase}-${n}`)) n += 1;
+  return `${normalizedBase}-${n}`;
 }
 
 // Helper to sanitize/migrate threads from storage

@@ -27,5 +27,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("agent:chat-stream-error", handler);
     return () => ipcRenderer.removeListener("agent:chat-stream-error", handler);
   },
-  clearChat: (workspaceName: string) => ipcRenderer.invoke("agent:clear-chat", workspaceName)
+  clearChat: (workspaceName: string) => ipcRenderer.invoke("agent:clear-chat", workspaceName),
+  windowMinimize: () => ipcRenderer.invoke("window:minimize"),
+  windowToggleMaximize: () => ipcRenderer.invoke("window:maximize-toggle"),
+  windowClose: () => ipcRenderer.invoke("window:close"),
+  minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
+  toggleMaximizeWindow: () => ipcRenderer.invoke("window:maximize-toggle"),
+  closeWindow: () => ipcRenderer.invoke("window:close"),
+  isWindowMaximized: () => ipcRenderer.invoke("window:is-maximized"),
+  onWindowMaximizedChanged: (callback: (maximized: boolean) => void) => {
+    const handler = (_event: unknown, maximized: unknown) => callback(Boolean(maximized));
+    ipcRenderer.on("window:maximized-changed", handler);
+    return () => ipcRenderer.removeListener("window:maximized-changed", handler);
+  }
 });
