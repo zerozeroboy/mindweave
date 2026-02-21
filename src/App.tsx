@@ -253,10 +253,13 @@ export default function App() {
   // --- Thread Management ---
   const handleDeleteThread = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    const title = threads.find(t => t.id === id)?.title?.trim() || '该任务';
     Modal.confirm({
       title: '删除任务',
       centered: true,
-      content: '确定要删除这个任务吗？',
+      content: `确定要删除任务「${title}」吗？`,
+      okText: '删除',
+      cancelText: '取消',
       onOk: () => {
         setThreads(prev => {
           const next = prev.filter(t => t.id !== id);
@@ -410,6 +413,8 @@ export default function App() {
         onCancel={() => setIsModalOpen(false)}
         onOk={handleCreateWorkspace}
         confirmLoading={loading}
+        okText="创建"
+        cancelText="取消"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Input placeholder="工作空间名称" value={newWorkspaceName} onChange={e => setNewWorkspaceName(e.target.value)} />

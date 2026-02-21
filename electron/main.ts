@@ -19,12 +19,28 @@ fs.mkdirSync(diskCachePath, { recursive: true });
 app.setPath("userData", userDataPath);
 app.setPath("sessionData", sessionDataPath);
 app.commandLine.appendSwitch("disk-cache-dir", diskCachePath);
-app.setAppUserModelId("com.mindweave.desktop");
+const appUserModelId = app.isPackaged ? "com.mindweave.desktop" : "com.mindweave.desktop.dev";
+app.setAppUserModelId(appUserModelId);
 
 function resolveWindowIcon(): string | NativeImage | undefined {
-  const svgCandidates = [
-    path.join(__dirname, "..", "src", "assets", "mw-logo.svg")
+  const candidates = process.platform === "win32" ? [
+    path.join(__dirname, "..", "assets", "app-icon.ico"),
+    path.join(__dirname, "..", "assets", "app-icon.png"),
+    path.join(__dirname, "..", "src", "assets", "mw-logo.ico"),
+    path.join(__dirname, "..", "src", "assets", "mw-logo.png")
+  ] : [
+    path.join(__dirname, "..", "src", "assets", "mw-logo.ico"),
+    path.join(__dirname, "..", "src", "assets", "mw-logo.png"),
+    path.join(__dirname, "..", "assets", "app-icon.ico"),
+    path.join(__dirname, "..", "assets", "app-icon.png")
   ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  const svgCandidates = [path.join(__dirname, "..", "src", "assets", "mw-logo.svg")];
   for (const svgPath of svgCandidates) {
     if (!fs.existsSync(svgPath)) continue;
     try {
@@ -32,22 +48,10 @@ function resolveWindowIcon(): string | NativeImage | undefined {
       const encodedSvg = encodeURIComponent(svgContent);
       const image = nativeImage.createFromDataURL(`data:image/svg+xml;utf8,${encodedSvg}`);
       if (!image.isEmpty()) {
-        return image;
+        return process.platform === "win32" ? image.resize({ width: 256, height: 256 }) : image;
       }
     } catch {
       // ignore invalid or unreadable svg and continue fallback
-    }
-  }
-
-  const candidates = [
-    path.join(__dirname, "..", "assets", "app-icon.ico"),
-    path.join(__dirname, "..", "assets", "app-icon.png"),
-    path.join(__dirname, "..", "src", "assets", "mw-logo.ico"),
-    path.join(__dirname, "..", "src", "assets", "mw-logo.png")
-  ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return candidate;
     }
   }
   return undefined;

@@ -57,6 +57,8 @@ export default function ThreadList({
                title: '清空任务',
                centered: true,
                content: '确定要清空所有任务吗？',
+               okText: '清空',
+               cancelText: '取消',
                onOk: onClearThreads
              });
            }} style={{ fontSize: 11 }}>清空</Button>

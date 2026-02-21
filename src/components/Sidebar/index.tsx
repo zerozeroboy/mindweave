@@ -39,7 +39,11 @@ export default function Sidebar(props: SidebarProps) {
     <Sider 
       width={props.width}
       theme="light" 
-      style={{ borderRight: '1px solid #f0f0f0', flex: '0 0 auto' }}
+      style={{
+        borderRight: '1px solid #f0f0f0',
+        flex: '0 0 auto',
+        transition: 'none',
+      }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <WorkspaceSelector 
