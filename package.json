@@ -18,6 +18,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit",
     "desktop": "npm run build:electron && electron .",
     "electron": "npm run desktop",
+    "dist:win:dir": "npm run build && electron-builder --win --x64 --dir",
+    "dist:win": "npm run build && electron-builder --win --x64 -c.directories.output=release-installer",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -45,6 +47,7 @@
     "autoprefixer": "^10.4.24",
     "concurrently": "^9.2.1",
     "electron": "^31.7.7",
+    "electron-builder": "^26.0.12",
     "framer-motion": "^12.34.0",
     "lucide-react": "^0.564.0",
     "patch-package": "^8.0.0",
@@ -53,5 +56,49 @@
     "tailwindcss": "^3.4.19",
     "typescript": "^5.7.3",
     "vite": "^5.4.10"
+  },
+  "build": {
+    "appId": "com.mindweave.desktop",
+    "productName": "MindWeave",
+    "directories": {
+      "output": "release"
+    },
+    "asar": true,
+    "files": [
+      "**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/app-icon.ico",
+        "to": "app-icon.ico"
+      }
+    ],
+    "win": {
+      "icon": "assets/app-icon.ico",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": false,
+      "include": "installer.nsh"
+    }
   }
 }

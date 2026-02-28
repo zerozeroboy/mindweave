@@ -128,6 +128,7 @@ export default function ChatArea({
     let accumulatedText = '';
     let accumulatedThinkingEvents: ThinkingEvent[] = [];
     const toolPreviews: Record<string, string> = {};
+    let lastThinkingChunkKey: string | null = null;
     let closed = false;
 
     const safeFinish = () => {
@@ -176,15 +177,34 @@ export default function ChatArea({
         {
           onChunk: (chunk: StreamChunk) => {
             if (chunk.type === 'thinking') {
+              const mode = chunk.thinkingMode ?? 'delta';
+              const content = String(chunk.content ?? '');
+              if (!content) return;
+              const chunkKey = `${mode}:${content}`;
+              if (lastThinkingChunkKey === chunkKey) return;
+              lastThinkingChunkKey = chunkKey;
+
               const lastEvent = accumulatedThinkingEvents[accumulatedThinkingEvents.length - 1];
-              if (lastEvent && lastEvent.type === 'thought') {
-                lastEvent.content += chunk.content;
+              if (mode === 'snapshot') {
+                if (lastEvent && lastEvent.type === 'thought') {
+                  lastEvent.content = content;
+                  accumulatedThinkingEvents = [...accumulatedThinkingEvents];
+                } else {
+                  accumulatedThinkingEvents.push({
+                    id: uid(),
+                    type: 'thought',
+                    content,
+                    timestamp: Date.now(),
+                  });
+                }
+              } else if (lastEvent && lastEvent.type === 'thought') {
+                lastEvent.content += content;
                 accumulatedThinkingEvents = [...accumulatedThinkingEvents];
               } else {
                 accumulatedThinkingEvents.push({
                   id: uid(),
                   type: 'thought',
-                  content: chunk.content,
+                  content,
                   timestamp: Date.now(),
                 });
               }

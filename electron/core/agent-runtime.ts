@@ -210,12 +210,32 @@ function getReasoningTrace(response: ModelResponse): string[] {
 function getReasoningDelta(chunk: ModelResponse | StreamEvent): string[] {
   const evt = chunk as StreamEvent;
   const eventType = (evt.type ?? "").toLowerCase();
-  if (eventType.includes("reasoning") || eventType.includes("thinking")) {
-    return [...collectTextFromUnknown(evt.delta), ...collectTextFromUnknown(evt.text), ...collectTextFromUnknown(evt.content), ...collectTextFromUnknown(evt.reasoning_text)]
-      .map((text) => text)
-      .filter((text) => text.replace(/\s/g, "").length > 0);
+  const isReasoningDelta =
+    (eventType.includes("reasoning") || eventType.includes("thinking")) &&
+    eventType.endsWith(".delta");
+  if (!isReasoningDelta) return [];
+
+  const candidates: string[] = [];
+  if (typeof evt.delta === "string") {
+    candidates.push(evt.delta);
+  } else {
+    candidates.push(...collectTextFromUnknown(evt.delta));
   }
-  return [];
+  if (candidates.length === 0 && typeof evt.reasoning_text === "string") {
+    candidates.push(evt.reasoning_text);
+  }
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const text of candidates) {
+    if (text.replace(/\s/g, "").length === 0) continue;
+    const key = text.replace(/\s+/g, " ").trim();
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+  }
+  return out;
 }
 
 function safeParseJsonObject(raw: unknown): Record<string, unknown> {
@@ -574,6 +594,8 @@ export async function* runAgentChatStream(payload: {
     let hasProcessedChunk = false;
     let needNextRound = false;
     let hasOutputDelta = false;
+    let thinkingSource: "none" | "delta" | "trace" = "none";
+    let emittedReasoningText = "";
 
     // 根据工作空间配置决定是否启用联网搜索
     // 构建工具列表：包含文件操作工具 + 可选的联网搜索
@@ -713,18 +735,42 @@ export async function* runAgentChatStream(payload: {
       // 提取思考过程（与工具轨迹分离）
       const reasoningDeltas = getReasoningDelta(chunkData);
       if (reasoningDeltas.length > 0) {
-        for (const delta of reasoningDeltas) {
-          if (delta.length > 0) {
-            yield { type: "thinking", content: delta };
+        if (thinkingSource !== "trace") {
+          for (const delta of reasoningDeltas) {
+            if (delta.length === 0) continue;
+
+            if (delta === emittedReasoningText) {
+              continue;
+            }
+
+            if (delta.startsWith(emittedReasoningText)) {
+              const suffix = delta.slice(emittedReasoningText.length);
+              emittedReasoningText = delta;
+              if (!suffix) continue;
+              yield { type: "thinking", content: suffix, thinkingMode: "delta" as const };
+              thinkingSource = "delta";
+              continue;
+            }
+
+            if (emittedReasoningText.endsWith(delta)) {
+              continue;
+            }
+
+            emittedReasoningText += delta;
+            yield { type: "thinking", content: delta, thinkingMode: "delta" as const };
+            thinkingSource = "delta";
           }
         }
       } else {
         // 某些模型仅在完成事件返回思考内容，作为降级补偿
-        const traces = getReasoningTrace(toModelResponse(chunkData));
-        for (const trace of traces) {
-          if (!emittedThinkingFallback.has(trace)) {
-            emittedThinkingFallback.add(trace);
-            yield { type: "thinking", content: trace };
+        if (thinkingSource !== "delta") {
+          const traces = getReasoningTrace(toModelResponse(chunkData));
+          for (const trace of traces) {
+            if (!emittedThinkingFallback.has(trace)) {
+              emittedThinkingFallback.add(trace);
+              yield { type: "thinking", content: trace, thinkingMode: "snapshot" as const };
+              thinkingSource = "trace";
+            }
           }
         }
       }

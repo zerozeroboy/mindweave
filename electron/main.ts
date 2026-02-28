@@ -12,6 +12,8 @@ const userDataPath = path.join(appDataRoot, "user-data");
 const sessionDataPath = path.join(appDataRoot, "session-data");
 const diskCachePath = path.join(sessionDataPath, "Cache");
 
+process.env.AGENTOS_DATA_DIR = userDataPath;
+
 fs.mkdirSync(userDataPath, { recursive: true });
 fs.mkdirSync(sessionDataPath, { recursive: true });
 fs.mkdirSync(diskCachePath, { recursive: true });
@@ -21,6 +23,23 @@ app.setPath("sessionData", sessionDataPath);
 app.commandLine.appendSwitch("disk-cache-dir", diskCachePath);
 const appUserModelId = app.isPackaged ? "com.mindweave.desktop" : "com.mindweave.desktop.dev";
 app.setAppUserModelId(appUserModelId);
+
+if (app.isPackaged) {
+  const gotLock = app.requestSingleInstanceLock();
+  if (!gotLock) {
+    app.quit();
+  } else {
+    app.on("second-instance", () => {
+      const windows = BrowserWindow.getAllWindows();
+      const win = windows.length ? windows[0] : null;
+      if (win) {
+        if (win.isMinimized()) win.restore();
+        win.focus();
+      }
+      createWindow();
+    });
+  }
+}
 
 function resolveWindowIcon(): string | NativeImage | undefined {
   const candidates = process.platform === "win32" ? [
@@ -106,10 +125,21 @@ function createWindow() {
   win.setMenuBarVisibility(false);
   win.on("maximize", () => win.webContents.send("window:maximized-changed", true));
   win.on("unmaximize", () => win.webContents.send("window:maximized-changed", false));
-  win.loadURL("http://127.0.0.1:5173");
+  if (app.isPackaged) {
+    const indexPath = path.join(__dirname, "..", "dist", "index.html");
+    win.loadFile(indexPath);
+  } else {
+    win.loadURL("http://127.0.0.1:5173");
+  }
 }
 
 app.whenReady().then(() => {
+  if (app.isPackaged && !app.hasSingleInstanceLock()) {
+    return;
+  }
+  if (app.isPackaged) {
+    void import("./api-server.js");
+  }
   registerWorkspaceIpc();
   registerAgentIpc();
   registerWindowControlsIpc();

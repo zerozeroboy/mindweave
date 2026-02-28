@@ -10,6 +10,8 @@ dist/
 dist-electron/
 out/
 release/
+release-installer/
+build/
 
 # electron packages
 *.exe
@@ -39,6 +41,7 @@ coverage/
 temp/
 .tmp/
 tmp/
+tmp_asar_unpack/
 *.tsbuildinfo
 
 # logs

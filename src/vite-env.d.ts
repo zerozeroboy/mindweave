@@ -38,7 +38,7 @@ type MirrorReadFileResult = {
 
 type StreamChunk = 
   | { type: "thought"; content: string[] }
-  | { type: "thinking"; content: string }
+  | { type: "thinking"; content: string; thinkingMode?: "delta" | "snapshot" }
   | { type: "text"; content: string }
   | {
       type: "tool";
