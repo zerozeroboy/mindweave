@@ -18,6 +18,8 @@ export default function FileTree({
   openFile,
   currentWorkspaceName
 }: FileTreeProps) {
+  const totalDirs = Object.values(dirCache).flat().filter((e) => e.kind === 'dir').length;
+  const totalFiles = Object.values(dirCache).flat().filter((e) => e.kind === 'file').length;
   
   const renderFileTree = (dirPath: string, depth: number) => {
     const entries = dirCache[dirPath] ?? [];
@@ -76,6 +78,9 @@ export default function FileTree({
     <div className="mw-filetree" style={{ flex: 1, overflowY: 'auto' }}>
       <div className="mw-filetree-header" style={{ padding: '8px 12px', fontSize: 13, color: '#999', fontWeight: 600, position: 'sticky', top: 0, zIndex: 1 }}>
         文件浏览
+        <div style={{ marginTop: 2, fontSize: 11, fontWeight: 400 }}>
+          Snapshot: {totalFiles} files / {totalDirs} dirs
+        </div>
       </div>
       {renderFileTree(".", 0)}
     </div>

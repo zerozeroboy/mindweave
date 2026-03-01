@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("workspace:mirror:listDir", workspaceName, relativeDir),
   readMirrorFile: (workspaceName: string, filePath: string, maxBytes?: number) =>
     ipcRenderer.invoke("workspace:mirror:readFile", { workspaceName, path: filePath, maxBytes }),
+  openSourceFile: (workspaceName: string, mirrorPath: string) =>
+    ipcRenderer.invoke("workspace:source:open", { workspaceName, mirrorPath }),
   chat: (payload: {
     workspace_name: string;
     message: string;

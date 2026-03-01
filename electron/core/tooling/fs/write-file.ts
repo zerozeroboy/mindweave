@@ -1,7 +1,8 @@
 import { ensureInside, toUnixRelative } from "../../path-safe.js";
 import type { ToolDefinition } from "../types.js";
 import { parseArgs } from "../types.js";
-import { atomicReplaceFile } from "./fs-utils.js";
+import { atomicReplaceFile, createDiffPreview } from "./fs-utils.js";
+import fs from "node:fs/promises";
 
 export const writeFileTool: ToolDefinition = {
   schema: {
@@ -26,9 +27,11 @@ export const writeFileTool: ToolDefinition = {
     const filePath = ensureInside(root, relativePath);
     const backup = args.backup === false ? false : true;
     const backupKeep = Number.isFinite(Number(args.backup_keep)) ? Number(args.backup_keep) : 3;
+    const oldContent = await fs.readFile(filePath, "utf-8").catch(() => "");
+    const nextContent = String(args.content ?? "");
     const { backupPath } = await atomicReplaceFile({
       filePath,
-      content: String(args.content ?? ""),
+      content: nextContent,
       backup,
       backupKeep
     });
@@ -36,8 +39,8 @@ export const writeFileTool: ToolDefinition = {
       ok: true,
       action: "updated",
       path: relativePath,
-      backup: backupPath ? toUnixRelative(root, backupPath) : undefined
+      backup: backupPath ? toUnixRelative(root, backupPath) : undefined,
+      diff: createDiffPreview({ oldPath: relativePath, newPath: relativePath, oldContent, newContent: nextContent })
     };
   }
 };
-

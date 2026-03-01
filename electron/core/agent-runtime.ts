@@ -536,6 +536,8 @@ function summarizeToolEnd(
     if (action === "created") details.push("结果：已创建");
     const backup = typeof (toolResult as any).backup === "string" ? String((toolResult as any).backup) : "";
     if (backup) details.push(`备份：${backup}`);
+    const diff = typeof (toolResult as any).diff === "string" ? String((toolResult as any).diff) : "";
+    if (diff) details.push(`差异预览：\n${diff}`);
   }
 
   // 失败时把真实错误原因带出来（否则只看到“工具执行失败”）
@@ -567,6 +569,12 @@ export async function* runAgentChatStream(payload: {
   const toolStartEmitted = new Set<string>();
   const webSearchStartedAt = new Map<string, number>();
   const webSearchEnded = new Set<string>();
+  let assistantText = "";
+  const budget = { maxRounds: 12, maxToolCalls: 48, maxMs: 90_000, maxRepeatedToolCall: 4 };
+  const startedAtAll = Date.now();
+  let rounds = 0;
+  let toolCalls = 0;
+  const repeatedToolCalls = new Map<string, number>();
 
   // ModelArk Responses API: input item uses { type:"message", role, content:"..." }
   input.push({
@@ -591,6 +599,17 @@ export async function* runAgentChatStream(payload: {
   // 不限制轮次：只要模型持续触发工具调用，就继续下一轮
   // 注意：若模型陷入工具循环，这里不会主动熔断（按产品需要可后续再加）
   while (true) {
+    rounds += 1;
+    if (rounds > budget.maxRounds) {
+      yield { type: "text", content: `\n\n[系统熔断] 工具轮次超过上限（${budget.maxRounds}）。请缩小问题范围后重试。` };
+      yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+      return;
+    }
+    if (Date.now() - startedAtAll > budget.maxMs) {
+      yield { type: "text", content: `\n\n[系统熔断] 对话耗时超过 ${Math.round(budget.maxMs / 1000)} 秒，请拆分任务后重试。` };
+      yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+      return;
+    }
     let hasProcessedChunk = false;
     let needNextRound = false;
     let hasOutputDelta = false;
@@ -779,10 +798,12 @@ export async function* runAgentChatStream(payload: {
       const textDelta = getTextDelta(chunkData);
       if (textDelta) {
         hasOutputDelta = true;
+        assistantText += textDelta;
         yield { type: "text", content: textDelta };
       }
       const text = !hasOutputDelta ? getOutputText(toModelResponse(chunkData)) : "";
       if (text) {
+        assistantText += text;
         yield { type: "text", content: text };
       }
 
@@ -791,6 +812,21 @@ export async function* runAgentChatStream(payload: {
       if (calls.length > 0) {
         for (const call of calls) {
           thoughtTrace.push(`🔧 调用工具: ${call.name}`);
+          toolCalls += 1;
+          if (toolCalls > budget.maxToolCalls) {
+            yield { type: "text", content: `\n\n[系统熔断] 工具调用次数超过上限（${budget.maxToolCalls}）。` };
+            yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+            return;
+          }
+
+          const toolCallKey = `${call.name}:${call.arguments}`;
+          const repeatedCount = (repeatedToolCalls.get(toolCallKey) ?? 0) + 1;
+          repeatedToolCalls.set(toolCallKey, repeatedCount);
+          if (repeatedCount > budget.maxRepeatedToolCall) {
+            yield { type: "text", content: `\n\n[系统熔断] 检测到重复工具调用（${call.name}）超过阈值，已停止。` };
+            yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+            return;
+          }
 
           const argsObj = safeParseJsonObject(call.arguments);
           const startSummary = summarizeToolStart(call.name, argsObj);
@@ -881,6 +917,12 @@ export async function* runAgentChatStream(payload: {
           durationMs
         };
         yield toolEndChunk;
+      }
+
+      if (!assistantText.includes("Sources:")) {
+        const list = [...sources];
+        const sourcesText = list.length > 0 ? list.map((s) => `- ${s}`).join("\n") : "(none)";
+        yield { type: "text", content: `\n\nSources:\n${sourcesText}` };
       }
       yield {
         type: "done",
