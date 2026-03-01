@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import sys
 import os
-import zipfile
-import xml.etree.ElementTree as ET
-from datetime import datetime
+import sys
+from datetime import datetime, timezone
+
+SUPPORTED_EXTS = {".docx", ".pptx", ".xlsx", ".pdf"}
 
 
 def _meta(relative_path: str):
@@ -11,89 +11,25 @@ def _meta(relative_path: str):
         f"# {os.path.basename(relative_path)}",
         "",
         f"- Source: {relative_path}",
-        f"- Converted at: {datetime.utcnow().isoformat()}Z",
+        f"- Converted at: {datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')}",
         "",
     ]
 
 
-def convert_docx(src: str):
-    with zipfile.ZipFile(src, "r") as zf:
-        xml = zf.read("word/document.xml")
-    root = ET.fromstring(xml)
-    ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
-    lines = []
-    for p in root.findall(".//w:p", ns):
-        texts = [t.text or "" for t in p.findall(".//w:t", ns)]
-        line = "".join(texts).strip()
-        if line:
-            lines.append(line)
-    return "\n\n".join(lines)
-
-
-def convert_pptx(src: str):
-    lines = []
-    with zipfile.ZipFile(src, "r") as zf:
-        slide_names = sorted([n for n in zf.namelist() if n.startswith("ppt/slides/slide") and n.endswith(".xml")])
-        ns = {"a": "http://schemas.openxmlformats.org/drawingml/2006/main"}
-        for idx, name in enumerate(slide_names, 1):
-            xml = zf.read(name)
-            root = ET.fromstring(xml)
-            texts = [t.text.strip() for t in root.findall(".//a:t", ns) if t.text and t.text.strip()]
-            if not texts:
-                continue
-            lines.append(f"## Slide {idx}")
-            lines.extend([f"- {t}" for t in texts])
-            lines.append("")
-    return "\n".join(lines)
-
-
-def convert_xlsx(src: str):
-    with zipfile.ZipFile(src, "r") as zf:
-        shared = []
-        if "xl/sharedStrings.xml" in zf.namelist():
-            sroot = ET.fromstring(zf.read("xl/sharedStrings.xml"))
-            ns = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-            shared = ["".join([t.text or "" for t in si.findall(".//s:t", ns)]) for si in sroot.findall(".//s:si", ns)]
-
-        ns = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-        lines = []
-        sheets = sorted([n for n in zf.namelist() if n.startswith("xl/worksheets/sheet") and n.endswith(".xml")])
-        for idx, sheet in enumerate(sheets, 1):
-            root = ET.fromstring(zf.read(sheet))
-            lines.append(f"## Sheet {idx}")
-            for row in root.findall(".//s:row", ns):
-                vals = []
-                for c in row.findall("s:c", ns):
-                    t = c.attrib.get("t")
-                    v = c.find("s:v", ns)
-                    if v is None or v.text is None:
-                        vals.append("")
-                        continue
-                    text = v.text
-                    if t == "s":
-                        try:
-                            text = shared[int(text)]
-                        except Exception:
-                            pass
-                    vals.append(text)
-                if any(v for v in vals):
-                    lines.append("| " + " | ".join(vals) + " |")
-            lines.append("")
-    return "\n".join(lines)
-
-
-def convert_pdf(src: str):
+def convert_with_markitdown(src: str):
     try:
-        from pypdf import PdfReader
+        from markitdown import MarkItDown
     except Exception as e:
-        raise RuntimeError(f"missing pypdf: {e}")
-    reader = PdfReader(src)
-    chunks = []
-    for i, page in enumerate(reader.pages, 1):
-        text = (page.extract_text() or "").strip()
-        if text:
-            chunks.append(f"## Page {i}\n\n{text}")
-    return "\n\n".join(chunks)
+        raise RuntimeError(
+            f"missing markitdown: {e}. install with: pip install markitdown[all]"
+        )
+
+    md = MarkItDown()
+    result = md.convert(src)
+    text = getattr(result, "text_content", None)
+    if text is None:
+        raise RuntimeError("markitdown returned no text_content")
+    return str(text)
 
 
 def main():
@@ -105,17 +41,10 @@ def main():
     ext = os.path.splitext(src)[1].lower()
 
     try:
-        if ext == ".docx":
-            body = convert_docx(src)
-        elif ext == ".pptx":
-            body = convert_pptx(src)
-        elif ext == ".xlsx":
-            body = convert_xlsx(src)
-        elif ext == ".pdf":
-            body = convert_pdf(src)
-        else:
+        if ext not in SUPPORTED_EXTS:
             raise RuntimeError(f"unsupported extension: {ext}")
 
+        body = convert_with_markitdown(src)
         text = "\n".join(_meta(rel)) + (body.strip() if body else "(empty)") + "\n"
         sys.stdout.write(text)
     except Exception as e:
