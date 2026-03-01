@@ -3,7 +3,7 @@ import fsp from "node:fs/promises";
 import { ensureInside, toUnixRelative } from "../../path-safe.js";
 import type { ToolDefinition } from "../types.js";
 import { parseArgs } from "../types.js";
-import { atomicReplaceFile } from "./fs-utils.js";
+import { atomicReplaceFile, createDiffPreview } from "./fs-utils.js";
 
 interface ReplacementResult {
   newContent: string;
@@ -316,7 +316,8 @@ export const patchFileTool: ToolDefinition = {
         ok: true,
         action: "created",
         path: relativePath,
-        backup: backupPath ? toUnixRelative(root, backupPath) : undefined
+        backup: backupPath ? toUnixRelative(root, backupPath) : undefined,
+        diff: createDiffPreview({ oldPath: relativePath, newPath: relativePath, oldContent: "", newContent: newString })
       };
     }
 
@@ -382,7 +383,8 @@ export const patchFileTool: ToolDefinition = {
       path: relativePath,
       occurrences: result.occurrences,
       strategy: result.strategy,
-      backup: backupPath ? toUnixRelative(root, backupPath) : undefined
+      backup: backupPath ? toUnixRelative(root, backupPath) : undefined,
+      diff: createDiffPreview({ oldPath: relativePath, newPath: relativePath, oldContent: originalContent, newContent: finalContent })
     };
   }
 };

@@ -72,6 +72,7 @@ type ElectronApi = {
   syncWorkspace: (workspaceName: string) => Promise<SyncResult>;
   listMirrorDir: (workspaceName: string, relativeDir?: string) => Promise<MirrorListDirResult>;
   readMirrorFile: (workspaceName: string, filePath: string, maxBytes?: number) => Promise<MirrorReadFileResult>;
+  openSourceFile: (workspaceName: string, mirrorPath: string) => Promise<{ success: boolean; path?: string }>;
   chat: (payload: {
     workspace_name: string;
     message: string;

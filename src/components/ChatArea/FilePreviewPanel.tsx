@@ -7,9 +7,10 @@ interface FilePreviewPanelProps {
   width: number;
   filePreview: MirrorReadFileResult | null;
   setFilePreview: (val: MirrorReadFileResult | null) => void;
+  onOpenOriginal?: (mirrorPath: string) => void;
 }
 
-export default function FilePreviewPanel({ width, filePreview, setFilePreview }: FilePreviewPanelProps) {
+export default function FilePreviewPanel({ width, filePreview, setFilePreview, onOpenOriginal }: FilePreviewPanelProps) {
   if (!filePreview) return null;
 
   const isMarkdown = filePreview.path.toLowerCase().endsWith('.md');
@@ -65,6 +66,11 @@ export default function FilePreviewPanel({ width, filePreview, setFilePreview }:
             {filePreview.path}
           </span>
         </div>
+        {onOpenOriginal && (
+          <Button size="small" onClick={() => onOpenOriginal(filePreview.path)} style={{ marginRight: 8 }}>
+            打开原文件
+          </Button>
+        )}
         <Button 
           size="small" 
           type="text" 

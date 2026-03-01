@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import path from "node:path";
+import { createTwoFilesPatch } from "diff";
 import type { SearchMatch } from "../types.js";
 
 export interface GrepOptions {
@@ -158,3 +159,9 @@ export async function atomicReplaceFile(params: {
   return { backupPath };
 }
 
+export function createDiffPreview(params: { oldPath: string; newPath: string; oldContent: string; newContent: string }) {
+  const patch = createTwoFilesPatch(params.oldPath, params.newPath, params.oldContent, params.newContent, "before", "after", {
+    context: 2
+  });
+  return patch.split("\n").slice(0, 120).join("\n");
+}

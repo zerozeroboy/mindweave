@@ -4,6 +4,7 @@ import path from "node:path";
 import { ensureInside } from "../../path-safe.js";
 import type { ToolDefinition } from "../types.js";
 import { parseArgs } from "../types.js";
+import { createDiffPreview } from "./fs-utils.js";
 
 export const createFileTool: ToolDefinition = {
   schema: {
@@ -28,8 +29,13 @@ export const createFileTool: ToolDefinition = {
       throw new Error("目标文件已存在");
     }
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, String(args.content ?? ""), "utf-8");
-    return { ok: true, action: "created", path: relativePath };
+    const nextContent = String(args.content ?? "");
+    await fs.writeFile(filePath, nextContent, "utf-8");
+    return {
+      ok: true,
+      action: "created",
+      path: relativePath,
+      diff: createDiffPreview({ oldPath: relativePath, newPath: relativePath, oldContent: "", newContent: nextContent })
+    };
   }
 };
-
