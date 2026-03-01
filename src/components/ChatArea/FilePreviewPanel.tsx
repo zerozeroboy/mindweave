@@ -85,24 +85,24 @@ export default function FilePreviewPanel({ width, filePreview, setFilePreview, o
 
         <div className="mw-file-preview-actions">
           {onOpenOriginal && (
-            <Tooltip title="打开原文件">
+            <Tooltip title="Open original file">
               <Button
                 size="small"
                 type="text"
                 onClick={() => onOpenOriginal(filePreview.path)}
                 icon={<ExportOutlined />}
                 className="mw-file-preview-open-btn"
-                aria-label="打开原文件"
+                aria-label="Open original file"
               />
             </Tooltip>
           )}
-          <Tooltip title="关闭预览">
+          <Tooltip title="Close preview">
             <Button
               size="small"
               type="text"
               onClick={() => setFilePreview(null)}
               icon={<CloseOutlined />}
-              aria-label="关闭预览"
+              aria-label="Close preview"
               className="mw-file-preview-close-btn"
             />
           </Tooltip>
@@ -112,7 +112,7 @@ export default function FilePreviewPanel({ width, filePreview, setFilePreview, o
       <div className="mw-file-preview-content" style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
         {isImage && filePreview.encoding === 'base64' && filePreview.mime ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {filePreview.truncated ? <div style={{ fontSize: 12, color: '#b45309' }}>图片内容被截断，建议调大读取上限。</div> : null}
+            {filePreview.truncated ? <div style={{ fontSize: 12, color: '#b45309' }}>Image content was truncated. Consider raising the read limit.</div> : null}
             <img
               src={`data:${filePreview.mime};base64,${filePreview.content}`}
               alt={filename}

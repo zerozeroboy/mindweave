@@ -81,7 +81,7 @@ export default function App() {
   };
   const getPreviewBounds = () => {
     const min = 320;
-    const minChatWidth = 320;
+    const minChatWidth = 240;
     const resizeHandleWidth = 12;
     const reserved = sidebarWidth + resizeHandleWidth * 2 + minChatWidth;
     const available = Math.floor(window.innerWidth - reserved);
