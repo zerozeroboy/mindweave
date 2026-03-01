@@ -62,7 +62,12 @@ type StreamChunk =
         truncated: boolean;
       };
     }
-  | { type: "done"; sources: string[]; thought_trace: string[] };
+  | {
+      type: "done";
+      sources: string[];
+      source_refs?: Array<{ path: string; line?: number; quote?: string }>;
+      thought_trace: string[];
+    };
 
 type ElectronApi = {
   selectDirectory: () => Promise<string>;

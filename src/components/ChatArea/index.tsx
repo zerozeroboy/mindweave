@@ -322,6 +322,7 @@ export default function ChatArea({
                   toolDetails: event.toolDetails ? [...event.toolDetails] : undefined,
                 })),
                 sources: Array.isArray(chunk.sources) ? [...chunk.sources] : chunk.sources,
+                sourceRefs: Array.isArray(chunk.source_refs) ? chunk.source_refs.map((ref) => ({ ...ref })) : chunk.source_refs,
                 thoughtTrace: Array.isArray(chunk.thought_trace) ? [...chunk.thought_trace] : chunk.thought_trace,
               });
               safeFinish();
@@ -355,7 +356,7 @@ export default function ChatArea({
             <div className="mw-markdown">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || ''}</ReactMarkdown>
             </div>
-            <SourceList sources={message.sources || []} onOpenSourceFile={onOpenSourceFile} />
+            <SourceList sources={message.sources || []} sourceRefs={message.sourceRefs || []} onOpenSourceFile={onOpenSourceFile} />
           </div>
         ) : message.content,
         header:
@@ -434,8 +435,17 @@ export default function ChatArea({
   );
 }
 
-function SourceList({ sources, onOpenSourceFile }: { sources: string[]; onOpenSourceFile: (path: string) => void }) {
+function SourceList({
+  sources,
+  sourceRefs,
+  onOpenSourceFile,
+}: {
+  sources: string[];
+  sourceRefs: Array<{ path: string; line?: number; quote?: string }>;
+  onOpenSourceFile: (path: string) => void;
+}) {
   const uniqueSources = Array.from(new Set(sources));
+  const refs = sourceRefs.filter((ref) => ref && typeof ref.path === 'string' && ref.path.length > 0);
 
   return (
     <div style={{ marginTop: 10, borderTop: '1px dashed #e8e8e8', paddingTop: 8 }}>
@@ -444,12 +454,35 @@ function SourceList({ sources, onOpenSourceFile }: { sources: string[]; onOpenSo
         <button
           type="button"
           style={{ border: 0, background: 'transparent', color: '#666', cursor: 'pointer', fontSize: 12 }}
-          onClick={() => navigator.clipboard.writeText(uniqueSources.length > 0 ? uniqueSources.join('\n') : '(none)')}
+          onClick={() => {
+            const lines = refs.length > 0
+              ? refs.map((ref) => `${ref.path}${typeof ref.line === 'number' ? `:${ref.line}` : ''}${ref.quote ? ` | ${ref.quote}` : ''}`)
+              : uniqueSources;
+            navigator.clipboard.writeText(lines.length > 0 ? lines.join('\n') : '(none)');
+          }}
         >
           复制
         </button>
       </div>
-      {uniqueSources.length === 0 ? (
+      {refs.length > 0 ? (
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
+          {refs.map((ref, idx) => {
+            const label = `[S${idx + 1}] ${ref.path}${typeof ref.line === 'number' ? `:${ref.line}` : ''}`;
+            return (
+              <li key={`${ref.path}-${ref.line ?? 'na'}-${idx}`} style={{ fontSize: 12, marginBottom: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => onOpenSourceFile(ref.path)}
+                  style={{ border: 0, background: 'transparent', color: '#1677ff', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                >
+                  {label}
+                </button>
+                {ref.quote ? <div style={{ color: '#666', marginTop: 2 }}>{ref.quote}</div> : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : uniqueSources.length === 0 ? (
         <div style={{ fontSize: 12, color: '#999' }}>Sources: (none)</div>
       ) : (
         <ul style={{ margin: 0, paddingLeft: 18 }}>

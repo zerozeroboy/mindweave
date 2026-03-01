@@ -69,6 +69,23 @@ type ToolArgsStreamChunk = {
   };
 };
 
+type SourceRef = {
+  path: string;
+  line?: number;
+  quote?: string;
+};
+
+function normalizeQuote(text: unknown, maxLen = 180): string | undefined {
+  if (typeof text !== "string") return undefined;
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return undefined;
+  return normalized.length > maxLen ? `${normalized.slice(0, maxLen)}…` : normalized;
+}
+
+function sourceRefKey(ref: SourceRef): string {
+  return `${ref.path}#${ref.line ?? 0}#${ref.quote ?? ""}`;
+}
+
 const SYSTEM_PROMPT_RELATIVE_PATH = "electron/prompts/system-prompt.md";
 
 async function loadSystemPrompt(rootDir: string): Promise<string> {
@@ -563,6 +580,8 @@ export async function* runAgentChatStream(payload: {
   const systemPrompt = await loadSystemPrompt(cfg.rootDir);
   const input: unknown[] = [];
   const sources = new Set<string>();
+  const sourceRefs: SourceRef[] = [];
+  const sourceRefSeen = new Set<string>();
   const thoughtTrace: string[] = [];
   const emittedThinkingFallback = new Set<string>();
   const toolArgsBuffers = new Map<string, string>();
@@ -602,12 +621,12 @@ export async function* runAgentChatStream(payload: {
     rounds += 1;
     if (rounds > budget.maxRounds) {
       yield { type: "text", content: `\n\n[系统熔断] 工具轮次超过上限（${budget.maxRounds}）。请缩小问题范围后重试。` };
-      yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+      yield { type: "done", sources: [...sources], source_refs: [...sourceRefs], thought_trace: [...new Set(thoughtTrace)] };
       return;
     }
     if (Date.now() - startedAtAll > budget.maxMs) {
       yield { type: "text", content: `\n\n[系统熔断] 对话耗时超过 ${Math.round(budget.maxMs / 1000)} 秒，请拆分任务后重试。` };
-      yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+      yield { type: "done", sources: [...sources], source_refs: [...sourceRefs], thought_trace: [...new Set(thoughtTrace)] };
       return;
     }
     let hasProcessedChunk = false;
@@ -815,7 +834,7 @@ export async function* runAgentChatStream(payload: {
           toolCalls += 1;
           if (toolCalls > budget.maxToolCalls) {
             yield { type: "text", content: `\n\n[系统熔断] 工具调用次数超过上限（${budget.maxToolCalls}）。` };
-            yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+            yield { type: "done", sources: [...sources], source_refs: [...sourceRefs], thought_trace: [...new Set(thoughtTrace)] };
             return;
           }
 
@@ -824,7 +843,7 @@ export async function* runAgentChatStream(payload: {
           repeatedToolCalls.set(toolCallKey, repeatedCount);
           if (repeatedCount > budget.maxRepeatedToolCall) {
             yield { type: "text", content: `\n\n[系统熔断] 检测到重复工具调用（${call.name}）超过阈值，已停止。` };
-            yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+            yield { type: "done", sources: [...sources], source_refs: [...sourceRefs], thought_trace: [...new Set(thoughtTrace)] };
             return;
           }
 
@@ -885,12 +904,39 @@ export async function* runAgentChatStream(payload: {
             const toolPath = (toolResultObj as any).path;
             if (typeof toolPath === "string") {
               sources.add(toolPath);
+              const lineRange = Array.isArray((toolResultObj as any).range) ? (toolResultObj as any).range : undefined;
+              const startLine = Array.isArray(lineRange) && typeof lineRange[0] === "number" ? lineRange[0] : undefined;
+              const ref: SourceRef = {
+                path: toolPath,
+                line: startLine,
+                quote: normalizeQuote((toolResultObj as any).content)
+              };
+              const key = sourceRefKey(ref);
+              if (!sourceRefSeen.has(key)) {
+                sourceRefSeen.add(key);
+                sourceRefs.push(ref);
+              }
             }
             const toolHits = (toolResultObj as any).hits;
             if (Array.isArray(toolHits)) {
               for (const hit of toolHits) {
                 if (hit && typeof hit === "object" && typeof (hit as any).path === "string") {
-                  sources.add(String((hit as any).path));
+                  const hitPath = String((hit as any).path);
+                  sources.add(hitPath);
+                  const matches = Array.isArray((hit as any).matches) ? (hit as any).matches : [];
+                  for (const match of matches.slice(0, 3)) {
+                    const line = typeof (match as any).line === "number" ? (match as any).line : undefined;
+                    const ref: SourceRef = {
+                      path: hitPath,
+                      line,
+                      quote: normalizeQuote((match as any).text)
+                    };
+                    const key = sourceRefKey(ref);
+                    if (!sourceRefSeen.has(key)) {
+                      sourceRefSeen.add(key);
+                      sourceRefs.push(ref);
+                    }
+                  }
                 }
               }
             }
@@ -919,14 +965,10 @@ export async function* runAgentChatStream(payload: {
         yield toolEndChunk;
       }
 
-      if (!assistantText.includes("Sources:")) {
-        const list = [...sources];
-        const sourcesText = list.length > 0 ? list.map((s) => `- ${s}`).join("\n") : "(none)";
-        yield { type: "text", content: `\n\nSources:\n${sourcesText}` };
-      }
       yield {
         type: "done",
         sources: [...sources],
+        source_refs: [...sourceRefs],
         thought_trace: [...new Set(thoughtTrace)]
       };
       return;
