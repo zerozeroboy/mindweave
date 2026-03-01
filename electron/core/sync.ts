@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import type { Workspace } from "./workspace-store.js";
 import { buildWorkspacePageIndex } from "./page-index.js";
+import { DOC_TO_MARKDOWN_EXTS, isMediaExt, isTextFile } from "./file-support.js";
 
 type SyncStateItem = {
   sourceHash: string;
@@ -46,6 +47,11 @@ function nowTag() {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
 
+function buildConflictPath(targetPath: string): string {
+  const parsed = path.parse(targetPath);
+  return path.join(parsed.dir, `${parsed.name}.conflict-${nowTag()}${parsed.ext || ".md"}`);
+}
+
 async function readSyncState(workspace: Workspace): Promise<SyncState> {
   const statePath = path.join(workspace.mirror_path, ".mindweave", "sync-state.json");
   try {
@@ -81,14 +87,14 @@ export async function walkFiles(root: string): Promise<string[]> {
   return files;
 }
 
-function getMirrorPath(sourceFile: string, sourceRoot: string, mirrorRoot: string) {
+function getMirrorPath(sourceFile: string, sourceRoot: string, mirrorRoot: string, mode: "markdown" | "copy") {
   const relative = path.relative(sourceRoot, sourceFile);
   const ext = path.extname(relative).toLowerCase();
   const relativeNoExt = relative.slice(0, relative.length - ext.length);
   return {
     ext,
     relativeSourcePath: relative.replace(/\\/g, "/"),
-    mirrorPath: path.join(mirrorRoot, `${relativeNoExt}.md`)
+    mirrorPath: mode === "markdown" ? path.join(mirrorRoot, `${relativeNoExt}.md`) : path.join(mirrorRoot, relative)
   };
 }
 
@@ -156,25 +162,36 @@ async function runPythonConverter(sourcePath: string, relativeSourcePath: string
   return runWithPython(sourcePath, relativeSourcePath);
 }
 
-async function convertSourceFile(filePath: string, ext: string, relativeSourcePath: string) {
-  if (ext === ".md" || ext === ".txt") {
-    return fs.readFile(filePath, "utf-8");
-  }
-  if ([".docx", ".pdf", ".pptx", ".xlsx"].includes(ext)) {
+type ConversionResult =
+  | { mode: "markdown"; content: string }
+  | { mode: "copy" }
+  | { mode: "skip" };
+
+async function convertSourceFile(filePath: string, ext: string, relativeSourcePath: string): Promise<ConversionResult> {
+  if (DOC_TO_MARKDOWN_EXTS.has(ext)) {
     try {
-      return await runPythonConverter(filePath, relativeSourcePath);
+      return { mode: "markdown", content: await runPythonConverter(filePath, relativeSourcePath) };
     } catch (error) {
-      return [
-        `# ${path.basename(filePath)}`,
-        "",
-        `原始文件: ${relativeSourcePath}`,
-        "",
-        `> 文档转换失败：${(error as Error).message}`,
-        "> 可尝试：安装 Python 依赖（如 pypdf）或检查文件是否损坏。"
-      ].join("\n");
+      return {
+        mode: "markdown",
+        content: [
+          `# ${path.basename(filePath)}`,
+          "",
+          `原始文件: ${relativeSourcePath}`,
+          "",
+          `> 文档转换失败：${(error as Error).message}`,
+          "> 可尝试：安装 Python 依赖（如 pypdf）或检查文件是否损坏。"
+        ].join("\n")
+      };
     }
   }
-  return null;
+  if (isMediaExt(filePath)) {
+    return { mode: "copy" };
+  }
+  if (await isTextFile(filePath)) {
+    return { mode: "copy" };
+  }
+  return { mode: "skip" };
 }
 
 export async function syncWorkspaceFiles(workspace: Workspace) {
@@ -189,10 +206,12 @@ export async function syncWorkspaceFiles(workspace: Workspace) {
   const sourceSet = new Set<string>();
 
   for (const sourceFile of sourceFiles) {
-    const { ext, relativeSourcePath, mirrorPath } = getMirrorPath(sourceFile, workspace.source_path, workspace.mirror_path);
+    const ext = path.extname(sourceFile).toLowerCase();
+    const converted = await convertSourceFile(sourceFile, ext, path.relative(workspace.source_path, sourceFile).replace(/\\/g, "/"));
+    const mode = converted.mode;
+    if (mode === "skip") continue;
+    const { relativeSourcePath, mirrorPath } = getMirrorPath(sourceFile, workspace.source_path, workspace.mirror_path, mode);
     sourceSet.add(relativeSourcePath);
-    const content = await convertSourceFile(sourceFile, ext, relativeSourcePath);
-    if (content === null) continue;
 
     const stat = await fs.stat(sourceFile);
     const sourceHash = await readFileHash(sourceFile);
@@ -214,8 +233,12 @@ export async function syncWorkspaceFiles(workspace: Workspace) {
         const backupPath = `${mirrorPath}.${nowTag()}.bak`;
         await fs.copyFile(mirrorPath, backupPath);
       }
-      await fs.writeFile(mirrorPath, content, "utf-8");
-      const newMirrorHash = sha256(content);
+      if (mode === "markdown") {
+        await fs.writeFile(mirrorPath, converted.content, "utf-8");
+      } else {
+        await fs.copyFile(sourceFile, mirrorPath);
+      }
+      const newMirrorHash = mode === "markdown" ? sha256(converted.content) : sourceHash;
       state.files[relativeSourcePath] = {
         sourceHash,
         sourceMtimeMs: stat.mtimeMs,
@@ -234,8 +257,12 @@ export async function syncWorkspaceFiles(workspace: Workspace) {
     }
 
     if (sourceChanged && mirrorChanged) {
-      const conflictPath = mirrorPath.replace(/\.md$/i, `.conflict-${nowTag()}.md`);
-      await fs.writeFile(conflictPath, content, "utf-8");
+      const conflictPath = buildConflictPath(mirrorPath);
+      if (mode === "markdown") {
+        await fs.writeFile(conflictPath, converted.content, "utf-8");
+      } else {
+        await fs.copyFile(sourceFile, conflictPath);
+      }
       conflicts.push(path.relative(workspace.mirror_path, conflictPath).replace(/\\/g, "/"));
       continue;
     }

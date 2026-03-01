@@ -2,27 +2,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { toUnixRelative } from "../../path-safe.js";
 import { getMirrorVisibilityConfig, shouldIncludeMirrorFile, type MirrorVisibilityConfig } from "../../mirror-visibility.js";
+import { TEXT_EXTS, getFileExt } from "../../file-support.js";
 import type { ToolDefinition, SearchHit, ToolResult } from "../types.js";
 import { parseArgs } from "../types.js";
 import { grepLike, matchGlob } from "./fs-utils.js";
 
-const SEARCHABLE_TEXT_EXTS = new Set([
-  ".md",
-  ".txt",
-  ".json",
-  ".yml",
-  ".yaml",
-  ".js",
-  ".jsx",
-  ".ts",
-  ".tsx",
-  ".css",
-  ".html"
-]);
-
 function isSearchableTextFile(fileName: string): boolean {
-  const ext = path.extname(fileName).toLowerCase();
-  return SEARCHABLE_TEXT_EXTS.has(ext);
+  const ext = getFileExt(fileName);
+  return TEXT_EXTS.has(ext);
 }
 
 async function walkSearchableFiles(root: string, vis: MirrorVisibilityConfig): Promise<string[]> {

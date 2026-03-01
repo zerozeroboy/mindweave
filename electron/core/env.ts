@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEFAULT_VISIBLE_EXTS } from "./file-support.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,7 +62,7 @@ function parseVisibleExts(raw: string, defaultValue: string[]): string[] | "*" {
 export function getConfig() {
   const fileEnv = readEnvFile();
   const debugModelIoMaxCharsRaw = Number(getEnvValue(fileEnv, "DEBUG_MODEL_IO_MAX_CHARS"));
-  const defaultMirrorVisibleExts = [".md", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp"];
+  const defaultMirrorVisibleExts = DEFAULT_VISIBLE_EXTS;
   return {
     rootDir: ROOT_DIR,
     arkApiKey: getEnvValue(fileEnv, "ARK_API_KEY"),

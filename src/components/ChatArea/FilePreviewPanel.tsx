@@ -16,6 +16,7 @@ export default function FilePreviewPanel({ width, filePreview, setFilePreview, o
   const isMarkdown = filePreview.path.toLowerCase().endsWith('.md');
   const lowerPath = filePreview.path.toLowerCase();
   const isImage = (typeof filePreview.mime === 'string' && filePreview.mime.startsWith('image/')) || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(lowerPath);
+  const isVideo = (typeof filePreview.mime === 'string' && filePreview.mime.startsWith('video/')) || /\.(mp4|webm|mov|mkv|avi)$/i.test(lowerPath);
   const content = filePreview.truncated ? `${filePreview.content}\n\n*(Content truncated)*` : filePreview.content;
   const filename = filePreview.path.split(/[\\/]/).pop() || filePreview.path;
 
@@ -117,6 +118,14 @@ export default function FilePreviewPanel({ width, filePreview, setFilePreview, o
               alt={filename}
               style={{ maxWidth: '100%', height: 'auto', borderRadius: 6, border: '1px solid #e5e7eb' }}
             />
+          </div>
+        ) : isVideo && filePreview.encoding === 'base64' && filePreview.mime ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filePreview.truncated ? <div style={{ fontSize: 12, color: '#b45309' }}>Video content was truncated. Consider raising the read limit.</div> : null}
+            <video controls style={{ width: '100%', maxHeight: '70vh', borderRadius: 6, border: '1px solid #e5e7eb' }}>
+              <source src={`data:${filePreview.mime};base64,${filePreview.content}`} type={filePreview.mime} />
+              Your browser does not support the video tag.
+            </video>
           </div>
         ) : isMarkdown ? (
           <div className="mw-markdown mw-file-preview-markdown max-w-none">

@@ -166,6 +166,33 @@ export function registerWorkspaceIpc() {
       if (!workspace) throw new Error("工作空间不存在");
 
       const mirrorRelative = String(payload.mirrorPath ?? "").replace(/\\/g, "/");
+      const exactCandidate = path.join(workspace.source_path, mirrorRelative);
+      try {
+        await fs.access(exactCandidate);
+        await shell.openPath(exactCandidate);
+        return { success: true, path: exactCandidate };
+      } catch {
+        // continue
+      }
+
+      try {
+        const statePath = path.join(workspace.mirror_path, ".mindweave", "sync-state.json");
+        const stateRaw = await fs.readFile(statePath, "utf-8");
+        const state = JSON.parse(stateRaw) as { files?: Record<string, { mirrorPath?: string }> };
+        if (state && state.files && typeof state.files === "object") {
+          for (const [sourceRel, item] of Object.entries(state.files)) {
+            if (item?.mirrorPath === mirrorRelative) {
+              const fromState = path.join(workspace.source_path, sourceRel);
+              await fs.access(fromState);
+              await shell.openPath(fromState);
+              return { success: true, path: fromState };
+            }
+          }
+        }
+      } catch {
+        // continue
+      }
+
       const baseRelative = mirrorRelative.replace(/\.md$/i, "");
       const candidates = [".md", ".txt", ".pdf", ".docx", ".pptx", ".xlsx", ".csv", ".json"]
         .map((ext) => path.join(workspace.source_path, `${baseRelative}${ext}`));

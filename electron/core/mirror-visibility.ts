@@ -1,5 +1,5 @@
-import path from "node:path";
 import { getConfig } from "./env.js";
+import { getFileExt, getPreviewMimeFromPath } from "./file-support.js";
 
 export type MirrorVisibilityConfig = {
   visibleExts: string[] | "*";
@@ -24,17 +24,10 @@ export function isBackupLikeFilename(name: string): boolean {
 export function shouldIncludeMirrorFile(name: string, config: MirrorVisibilityConfig): boolean {
   if (!config.showBackups && isBackupLikeFilename(name)) return false;
   if (config.visibleExts === "*") return true;
-  const ext = path.extname(name).toLowerCase();
+  const ext = getFileExt(name);
   return config.visibleExts.includes(ext);
 }
 
 export function getImageMimeFromPath(filePath: string): string | null {
-  const ext = path.extname(filePath).toLowerCase();
-  if (ext === ".png") return "image/png";
-  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
-  if (ext === ".gif") return "image/gif";
-  if (ext === ".webp") return "image/webp";
-  if (ext === ".svg") return "image/svg+xml";
-  if (ext === ".bmp") return "image/bmp";
-  return null;
+  return getPreviewMimeFromPath(filePath);
 }
