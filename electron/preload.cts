@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     message: string;
     history: Array<{ role: "user" | "assistant"; content: string }>;
   }) => ipcRenderer.invoke("agent:chat", payload),
+  chatCancel: (workspace_name: string) => ipcRenderer.invoke("agent:chat-cancel", workspace_name),
   onChatStreamChunk: (callback: (chunk: unknown) => void) => {
     const handler = (_event: unknown, chunk: unknown) => callback(chunk);
     ipcRenderer.on("agent:chat-stream-chunk", handler);

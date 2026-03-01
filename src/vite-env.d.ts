@@ -83,6 +83,7 @@ type ElectronApi = {
     message: string;
     history: Array<{ role: "user" | "assistant"; content: string }>;
   }) => Promise<{ success: boolean }>;
+  chatCancel: (workspace_name: string) => Promise<boolean>;
   onChatStreamChunk: (callback: (chunk: StreamChunk) => void) => () => void;
   onChatStreamError: (callback: (error: { message: string }) => void) => () => void;
   clearChat: (workspaceName: string) => Promise<boolean>;

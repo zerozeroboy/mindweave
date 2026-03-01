@@ -146,11 +146,14 @@ function createHttpBackend(): Backend {
     openSourceFile: async (_workspaceName, _mirrorPath) => ({ success: false }),
     chatStream: async (payload, handlers) => {
       let gotDone = false;
+      const ac = new AbortController();
+      const signal = handlers.signal || ac.signal;
+      
       const res = await fetch(`${base}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        signal: handlers.signal
+        signal
       });
       await readSseStream(res, {
         onEvent: (event, data) => {
@@ -194,13 +197,27 @@ export function getBackend(): Backend {
       readMirrorFile: (workspaceName, filePath, maxBytes) => window.electronAPI!.readMirrorFile(workspaceName, filePath, maxBytes),
       openSourceFile: (workspaceName, mirrorPath) => window.electronAPI!.openSourceFile(workspaceName, mirrorPath),
       chatStream: async (payload, handlers) => {
-        const cleanupChunk = window.electronAPI!.onChatStreamChunk((chunk) => handlers.onChunk(chunk));
-        const cleanupError = window.electronAPI!.onChatStreamError((err) => handlers.onError(err));
+        let cleanupChunk: (() => void) | undefined;
+        let cleanupError: (() => void) | undefined;
+        
         try {
+          cleanupChunk = window.electronAPI!.onChatStreamChunk((chunk) => {
+            handlers.onChunk(chunk);
+          });
+          cleanupError = window.electronAPI!.onChatStreamError((err) => {
+            handlers.onError(err);
+          });
+          
+          if (handlers.signal) {
+             handlers.signal.addEventListener('abort', () => {
+               window.electronAPI!.chatCancel(payload.workspace_name).catch(console.error);
+             });
+          }
+
           await window.electronAPI!.chat(payload);
         } finally {
-          cleanupChunk();
-          cleanupError();
+          if (cleanupChunk) cleanupChunk();
+          if (cleanupError) cleanupError();
         }
       }
     };

@@ -51,6 +51,7 @@ export default function ChatComposer({
         className={styles.composerInput}
         style={{ resize: 'none' }}
         autoFocus={autoFocus}
+        disabled={loading && !onStop} // 避免在没有提供 onStop 的情况下锁死
       />
 
       <div className={styles.composerActions}>

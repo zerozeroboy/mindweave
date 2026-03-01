@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Bubble } from '@ant-design/x';
 import { ChatMessage, ChatThread, ThinkingEvent } from '../../types';
 import { uid, toConversationHistory, deriveTaskTitleFromMessage, ensureUniqueTaskTitle, isAutoTaskTitle, createEmptyThread } from '../../utils/chat';
@@ -37,6 +37,7 @@ export default function ChatArea({
   const [streamingAssistantId, setStreamingAssistantId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [draft, setDraft] = useState('');
+  const skipResetOnNextThreadChangeRef = useRef(false);
   const backend = useMemo(() => getBackend(), []);
 
   const updateThreadMessages = (
@@ -53,6 +54,11 @@ export default function ChatArea({
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   useEffect(() => {
+    // 新建会话后会主动切换 activeThreadId，这种切换不应触发中止
+    if (skipResetOnNextThreadChangeRef.current) {
+      skipResetOnNextThreadChangeRef.current = false;
+      return;
+    }
     setStreamingAssistantId(null);
     setIsStreaming(false);
     setDraft('');
@@ -137,6 +143,7 @@ export default function ChatArea({
     });
 
     if (createdThread) {
+      skipResetOnNextThreadChangeRef.current = true;
       setActiveThreadId(createdThread.id);
     }
 
@@ -185,6 +192,7 @@ export default function ChatArea({
 
     const ac = new AbortController();
     setAbortController(ac);
+    const isAbortError = (message: string) => /aborted|aborterror/i.test(message);
 
     try {
       await backend.chatStream(
@@ -348,6 +356,10 @@ export default function ChatArea({
           },
           onError: (err: { message?: string } | string) => {
             const msg = typeof err === 'string' ? err : err?.message || String(err);
+            if (isAbortError(msg)) {
+              safeFinish();
+              return;
+            }
             accumulatedText += `\n\nError: ${msg}`;
             updateAssistant({ content: accumulatedText });
             safeFinish();
@@ -356,7 +368,12 @@ export default function ChatArea({
       );
       safeFinish();
     } catch (error) {
-      accumulatedText += `\n\nError starting chat: ${(error as Error).message}`;
+      const message = (error as Error).message;
+      if (isAbortError(message)) {
+        safeFinish();
+        return;
+      }
+      accumulatedText += `\n\nError starting chat: ${message}`;
       updateAssistant({ content: accumulatedText });
       safeFinish();
     }

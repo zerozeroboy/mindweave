@@ -4,6 +4,7 @@ import { listWorkspaces } from "../core/workspace-store.js";
 
 type ChatHistoryItem = { role: "user" | "assistant"; content: string };
 const sessionCache = new Map<string, ChatHistoryItem[]>();
+const activeChatControllers = new Map<string, AbortController>();
 
 export function registerAgentIpc() {
   // 流式聊天
@@ -36,10 +37,8 @@ export function registerAgentIpc() {
       let finalResponse = "";
       try {
         const ac = new AbortController();
-        const onCancel = () => ac.abort();
+        activeChatControllers.set(payload.workspace_name, ac);
         
-        // This is a simplified cancel approach for IPC; in reality we might need an explicit IPC cancel channel.
-        // For now, let's just make sure we pass the signal, and we can add true IPC cancel later if needed.
         for await (const chunk of runAgentChatStream({
           workspace,
           message: payload.message,
@@ -56,6 +55,8 @@ export function registerAgentIpc() {
           message: (error as Error).message
         });
         throw error;
+      } finally {
+        activeChatControllers.delete(payload.workspace_name);
       }
 
       const nextHistory: ChatHistoryItem[] = [
@@ -67,6 +68,15 @@ export function registerAgentIpc() {
       return { success: true };
     }
   );
+
+  ipcMain.handle("agent:chat-cancel", async (_event, workspaceName: string) => {
+    const ac = activeChatControllers.get(workspaceName);
+    if (ac) {
+      ac.abort();
+      activeChatControllers.delete(workspaceName);
+    }
+    return true;
+  });
 
   ipcMain.handle("agent:clear-chat", async (_event, workspaceName: string) => {
     sessionCache.delete(workspaceName);
