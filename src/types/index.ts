@@ -1,3 +1,9 @@
+export type SourceRef = {
+  path: string;
+  line?: number;
+  quote?: string;
+};
+
 export type ThinkingEvent = {
   id: string;
   type: 'thought' | 'tool';
@@ -18,6 +24,7 @@ export type ChatMessage = {
   updatedAt?: number;
   // Extra fields for our internal state
   sources?: string[];
+  sourceRefs?: SourceRef[];
   thoughtTrace?: string[]; // Deprecated?
   thinkingContent?: string; // Deprecated?
   thinkingEvents?: ThinkingEvent[]; // New structured thinking log
