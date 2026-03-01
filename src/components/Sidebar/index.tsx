@@ -32,6 +32,8 @@ interface SidebarProps {
   selectedFile: string;
   openFile: (filePath: string) => void;
   onSync: () => void;
+  isSyncing: boolean;
+  syncProgress: SyncProgress | null;
 }
 
 export default function Sidebar(props: SidebarProps) {
@@ -55,6 +57,8 @@ export default function Sidebar(props: SidebarProps) {
           setSidebarTab={props.setSidebarTab}
           onSync={props.onSync}
           onNewChat={props.onNewChat}
+          isSyncing={props.isSyncing}
+          syncProgress={props.syncProgress}
         />
 
         {props.sidebarTab === 'chat' && (

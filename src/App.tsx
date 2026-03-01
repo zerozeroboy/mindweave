@@ -42,6 +42,8 @@ export default function App() {
   const [newWorkspacePath, setNewWorkspacePath] = useState("");
   const [newWorkspaceModel] = useState(DEFAULT_MODEL);
   const [loading, setLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'chat' | 'files'>('chat');
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
     const raw = localStorage.getItem('mw.sidebar.width');
@@ -258,10 +260,24 @@ export default function App() {
 
   const handleSync = async () => {
     if (!currentWorkspace) return;
-    const hide = message.loading("正在同步...", 0);
+    if (isSyncing) return;
+    setIsSyncing(true);
+    setSyncProgress(null);
+    const msgKey = `sync-${currentWorkspace.name}`;
+    message.open({ key: msgKey, type: "loading", content: "同步开始...", duration: 0 });
     try {
-      const res = await backend.syncWorkspace(currentWorkspace.name);
-      hide();
+      const res = await backend.syncWorkspace(currentWorkspace.name, (progress) => {
+        setSyncProgress(progress);
+        const percentText = Number.isFinite(progress.percent) ? `${Math.max(0, Math.min(100, progress.percent))}%` : "--";
+        const currentFile = progress.currentFile ? ` · ${progress.currentFile}` : "";
+        message.open({
+          key: msgKey,
+          type: progress.stage === "failed" ? "error" : "loading",
+          content: `同步中 ${percentText}${currentFile}`,
+          duration: 0
+        });
+      });
+      message.destroy(msgKey);
       message.success(res.message);
       // Add system message to current thread
       if (activeThreadId) {
@@ -275,8 +291,10 @@ export default function App() {
         setThreads(prev => prev.map(t => t.id === activeThreadId ? { ...t, messages: [...t.messages, msg] } : t));
       }
     } catch (e) {
-      hide();
+      message.destroy(msgKey);
       message.error("同步失败");
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -393,10 +411,13 @@ export default function App() {
             selectedFile={selectedFile}
             openFile={openFile}
             onSync={handleSync}
+            isSyncing={isSyncing}
+            syncProgress={syncProgress}
           />
           <div
             className={`mw-resize-handle mw-resize-handle-sidebar${dragging === 'sidebar' ? ' is-dragging' : ''}`}
             onMouseDown={startSidebarResize}
+            style={{ WebkitAppRegion: 'no-drag' } as any}
             role="separator"
             aria-orientation="vertical"
             aria-label="调整左侧栏宽度"
@@ -422,6 +443,7 @@ export default function App() {
                 <div
                   className={`mw-resize-handle mw-resize-handle-preview${dragging === 'preview' ? ' is-dragging' : ''}`}
                   onMouseDown={startPreviewResize}
+                  style={{ WebkitAppRegion: 'no-drag' } as any}
                   role="separator"
                   aria-orientation="vertical"
                   aria-label="调整文件预览宽度"

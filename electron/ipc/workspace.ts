@@ -1,6 +1,7 @@
 import { BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { createWorkspace, listWorkspaces, updateWorkspace } from "../core/workspace-store.js";
 import { syncWorkspaceFiles } from "../core/sync.js";
 import { ensureInside, toUnixRelative } from "../core/path-safe.js";
@@ -66,7 +67,31 @@ export function registerWorkspaceIpc() {
     if (!workspace) {
       throw new Error("工作空间不存在");
     }
-    return syncWorkspaceFiles(workspace);
+    const taskId = randomUUID();
+    try {
+      return await syncWorkspaceFiles(workspace, {
+        taskId,
+        onProgress: (progress) => {
+          BrowserWindow.getAllWindows().forEach((win) => {
+            win.webContents.send("workspace:sync-progress", progress);
+          });
+        }
+      });
+    } catch (error) {
+      const failedPayload = {
+        taskId,
+        workspaceName,
+        stage: "failed" as const,
+        current: 0,
+        total: 0,
+        percent: 100,
+        message: (error as Error).message || "同步失败"
+      };
+      BrowserWindow.getAllWindows().forEach((win) => {
+        win.webContents.send("workspace:sync-progress", failedPayload);
+      });
+      throw error;
+    }
   });
 
   ipcMain.handle(

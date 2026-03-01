@@ -16,6 +16,8 @@ interface WorkspaceSelectorProps {
   setSidebarTab: (val: 'chat' | 'files') => void;
   onSync: () => void;
   onNewChat: () => void;
+  isSyncing: boolean;
+  syncProgress: SyncProgress | null;
 }
 
 export default function WorkspaceSelector({
@@ -26,7 +28,9 @@ export default function WorkspaceSelector({
   sidebarTab,
   setSidebarTab,
   onSync,
-  onNewChat
+  onNewChat,
+  isSyncing,
+  syncProgress
 }: WorkspaceSelectorProps) {
   const primaryActionStyle = {
     borderRadius: '8px',
@@ -100,10 +104,12 @@ export default function WorkspaceSelector({
                     size="large"
                     icon={<SyncOutlined />}
                     onClick={onSync}
+                    loading={isSyncing}
+                    disabled={isSyncing}
                     block
                     style={primaryActionStyle}
                   >
-                    同步文件
+                    {isSyncing ? `同步中 ${Math.max(0, Math.min(100, syncProgress?.percent ?? 0))}%` : '同步文件'}
                   </Button>
                 </Tooltip>
               )}

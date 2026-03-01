@@ -31,8 +31,9 @@ export default function FilePreviewPanel({ width, filePreview, setFilePreview, o
         background: '#fff',
         height: '100%',
         flexShrink: 0,
-        boxShadow: '-2px 0 8px rgba(0,0,0,0.05)'
-      }}
+        boxShadow: '-2px 0 8px rgba(0,0,0,0.05)',
+        WebkitAppRegion: 'no-drag'
+      } as any}
     >
       <div
         className="mw-file-preview-header"
@@ -83,7 +84,7 @@ export default function FilePreviewPanel({ width, filePreview, setFilePreview, o
             {filePreview.path}
           </span>
         </div>
-        <div className="mw-file-preview-actions">
+        <div className="mw-file-preview-actions" style={{ WebkitAppRegion: 'no-drag' } as any}>
           {onOpenOriginal && (
             <Tooltip title="Open original file">
               <Button

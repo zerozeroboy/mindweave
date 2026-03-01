@@ -14,6 +14,21 @@ type SyncResult = {
   message: string;
 };
 
+type SyncProgressStage = "queued" | "scanning" | "syncing" | "indexing" | "done" | "failed";
+
+type SyncProgress = {
+  taskId: string;
+  workspaceName: string;
+  stage: SyncProgressStage;
+  current: number;
+  total: number;
+  percent: number;
+  currentFile?: string;
+  speed?: number;
+  etaSeconds?: number;
+  message?: string;
+};
+
 type MirrorDirEntry = {
   name: string;
   path: string;
@@ -75,6 +90,7 @@ type ElectronApi = {
   createWorkspace: (payload: { name: string; source_path: string; model: string; enableWebSearch?: boolean }) => Promise<Workspace>;
   updateWorkspace: (name: string, updates: { model?: string; enableWebSearch?: boolean }) => Promise<Workspace>;
   syncWorkspace: (workspaceName: string) => Promise<SyncResult>;
+  onSyncProgress: (callback: (progress: SyncProgress) => void) => () => void;
   listMirrorDir: (workspaceName: string, relativeDir?: string) => Promise<MirrorListDirResult>;
   readMirrorFile: (workspaceName: string, filePath: string, maxBytes?: number) => Promise<MirrorReadFileResult>;
   openSourceFile: (workspaceName: string, mirrorPath: string) => Promise<{ success: boolean; path?: string }>;

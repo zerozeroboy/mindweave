@@ -8,6 +8,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   updateWorkspace: (name: string, updates: { model?: string; enableWebSearch?: boolean }) =>
     ipcRenderer.invoke("workspace:update", name, updates),
   syncWorkspace: (workspaceName: string) => ipcRenderer.invoke("workspace:sync", workspaceName),
+  onSyncProgress: (callback: (progress: unknown) => void) => {
+    const handler = (_event: unknown, progress: unknown) => callback(progress);
+    ipcRenderer.on("workspace:sync-progress", handler);
+    return () => ipcRenderer.removeListener("workspace:sync-progress", handler);
+  },
   listMirrorDir: (workspaceName: string, relativeDir?: string) =>
     ipcRenderer.invoke("workspace:mirror:listDir", workspaceName, relativeDir),
   readMirrorFile: (workspaceName: string, filePath: string, maxBytes?: number) =>

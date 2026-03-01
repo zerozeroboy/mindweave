@@ -129,7 +129,8 @@ function createWindow() {
     const indexPath = path.join(__dirname, "..", "dist", "index.html");
     win.loadFile(indexPath);
   } else {
-    win.loadURL("http://127.0.0.1:5173");
+    const devUrl = process.env.VITE_DEV_SERVER_URL || "http://127.0.0.1:5173";
+    win.loadURL(devUrl);
   }
 }
 

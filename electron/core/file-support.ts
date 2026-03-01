@@ -121,7 +121,14 @@ export async function isTextFile(filePath: string): Promise<boolean> {
   if (DOC_TO_MARKDOWN_EXTS.has(ext)) return false;
   if (IMAGE_EXTS.has(ext) || VIDEO_EXTS.has(ext)) return false;
 
-  const fh = await fs.open(filePath, "r");
+  let fh;
+  try {
+    fh = await fs.open(filePath, "r");
+  } catch (error) {
+    // 忽略由于访问特殊路径（例如 Electron .asar 内部）造成的读取错误，将其视为非文本文件
+    return false;
+  }
+
   try {
     const stat = await fh.stat();
     const probeLen = Math.min(stat.size, 32 * 1024);

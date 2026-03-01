@@ -17,7 +17,7 @@ export type Backend = {
   getWorkspaces: () => Promise<Workspace[]>;
   createWorkspace: (payload: { name: string; source_path: string; model: string; enableWebSearch?: boolean }) => Promise<Workspace>;
   updateWorkspace: (name: string, updates: { model?: string; enableWebSearch?: boolean }) => Promise<Workspace>;
-  syncWorkspace: (workspaceName: string) => Promise<SyncResult>;
+  syncWorkspace: (workspaceName: string, onProgress?: (progress: SyncProgress) => void) => Promise<SyncResult>;
   listMirrorDir: (workspaceName: string, relativeDir?: string) => Promise<MirrorListDirResult>;
   readMirrorFile: (workspaceName: string, filePath: string, maxBytes?: number) => Promise<MirrorReadFileResult>;
   openSourceFile: (workspaceName: string, mirrorPath: string) => Promise<{ success: boolean; path?: string }>;
@@ -126,8 +126,42 @@ function createHttpBackend(): Backend {
     createWorkspace: async (payload) => jsonFetch<Workspace>("/api/workspaces", { method: "POST", body: JSON.stringify(payload) }),
     updateWorkspace: async (name, updates) =>
       jsonFetch<Workspace>(`/api/workspaces/${encodeURIComponent(name)}`, { method: "PATCH", body: JSON.stringify(updates) }),
-    syncWorkspace: async (workspaceName) =>
-      jsonFetch<SyncResult>(`/api/workspaces/${encodeURIComponent(workspaceName)}/sync`, { method: "POST", body: "{}" }),
+    syncWorkspace: async (workspaceName, onProgress) => {
+      const taskId = `http-${Date.now()}`;
+      onProgress?.({
+        taskId,
+        workspaceName,
+        stage: "queued",
+        current: 0,
+        total: 0,
+        percent: 0,
+        message: "同步任务已创建"
+      });
+      try {
+        const result = await jsonFetch<SyncResult>(`/api/workspaces/${encodeURIComponent(workspaceName)}/sync`, { method: "POST", body: "{}" });
+        onProgress?.({
+          taskId,
+          workspaceName,
+          stage: "done",
+          current: 1,
+          total: 1,
+          percent: 100,
+          message: "同步完成"
+        });
+        return result;
+      } catch (error) {
+        onProgress?.({
+          taskId,
+          workspaceName,
+          stage: "failed",
+          current: 0,
+          total: 0,
+          percent: 100,
+          message: (error as Error).message || "同步失败"
+        });
+        throw error;
+      }
+    },
     listMirrorDir: async (workspaceName, relativeDir) => {
       const q = new URLSearchParams();
       if (relativeDir) q.set("dir", relativeDir);
@@ -192,7 +226,21 @@ export function getBackend(): Backend {
       getWorkspaces: () => window.electronAPI!.getWorkspaces(),
       createWorkspace: (payload) => window.electronAPI!.createWorkspace(payload),
       updateWorkspace: (name, updates) => window.electronAPI!.updateWorkspace(name, updates),
-      syncWorkspace: (workspaceName) => window.electronAPI!.syncWorkspace(workspaceName),
+      syncWorkspace: async (workspaceName, onProgress) => {
+        let cleanup: (() => void) | undefined;
+        if (onProgress) {
+          cleanup = window.electronAPI!.onSyncProgress((progress) => {
+            if (progress.workspaceName === workspaceName) {
+              onProgress(progress);
+            }
+          });
+        }
+        try {
+          return await window.electronAPI!.syncWorkspace(workspaceName);
+        } finally {
+          if (cleanup) cleanup();
+        }
+      },
       listMirrorDir: (workspaceName, relativeDir) => window.electronAPI!.listMirrorDir(workspaceName, relativeDir),
       readMirrorFile: (workspaceName, filePath, maxBytes) => window.electronAPI!.readMirrorFile(workspaceName, filePath, maxBytes),
       openSourceFile: (workspaceName, mirrorPath) => window.electronAPI!.openSourceFile(workspaceName, mirrorPath),
