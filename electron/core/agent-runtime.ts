@@ -674,6 +674,7 @@ export async function* runAgentChatStream(payload: {
   workspace: Workspace;
   message: string;
   history: HistoryItem[];
+  signal?: AbortSignal;
 }) {
   const cfg = getConfig();
   const systemPrompt = await loadSystemPrompt(cfg.rootDir);
@@ -722,6 +723,11 @@ export async function* runAgentChatStream(payload: {
   // 不限制轮次：只要模型持续触发工具调用，就继续下一轮
   // 注意：若模型陷入工具循环，这里不会主动熔断（按产品需要可后续再加）
   while (true) {
+    if (payload.signal?.aborted) {
+      yield { type: "text", content: `\n\n[系统提示：用户已手动终止]` };
+      yield buildDoneChunk();
+      return;
+    }
     rounds += 1;
     if (rounds > budget.maxRounds) {
       yield { type: "text", content: `\n\n[系统熔断] 工具轮次超过上限（${budget.maxRounds}）。请缩小问题范围后重试。` };
@@ -752,7 +758,8 @@ export async function* runAgentChatStream(payload: {
       model: payload.workspace.model || cfg.defaultModel,
       input,
       tools,
-      tool_choice: "auto"
+      tool_choice: "auto",
+      signal: payload.signal
     })) {
       const chunkData = chunk as ModelResponse | StreamEvent;
       hasProcessedChunk = true;
@@ -969,12 +976,17 @@ export async function* runAgentChatStream(payload: {
           const startedAt = Date.now();
           let toolResult: any;
           let toolOk = false;
-          try {
-            toolResult = await runTool(payload.workspace, call.name, call.arguments);
-            toolOk = true;
-          } catch (error) {
-            toolResult = { ok: false, error: (error as Error).message };
+          if (payload.signal?.aborted) {
+            toolResult = { ok: false, error: "系统提示：用户已手动终止执行" };
             toolOk = false;
+          } else {
+            try {
+              toolResult = await runTool(payload.workspace, call.name, call.arguments);
+              toolOk = true;
+            } catch (error) {
+              toolResult = { ok: false, error: (error as Error).message };
+              toolOk = false;
+            }
           }
           const durationMs = Date.now() - startedAt;
 

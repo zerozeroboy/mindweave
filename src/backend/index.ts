@@ -9,6 +9,7 @@ export type ChatStartPayload = {
 export type ChatStreamHandlers = {
   onChunk: (chunk: StreamChunk) => void;
   onError: (error: { message: string }) => void;
+  signal?: AbortSignal;
 };
 
 export type Backend = {
@@ -145,7 +146,12 @@ function createHttpBackend(): Backend {
     openSourceFile: async (_workspaceName, _mirrorPath) => ({ success: false }),
     chatStream: async (payload, handlers) => {
       let gotDone = false;
-      const res = await fetch(`${base}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const res = await fetch(`${base}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: handlers.signal
+      });
       await readSseStream(res, {
         onEvent: (event, data) => {
           if (event === "error") {

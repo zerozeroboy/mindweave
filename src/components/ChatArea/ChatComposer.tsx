@@ -1,4 +1,4 @@
-import { ArrowUpOutlined, GlobalOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, GlobalOutlined, BorderOutlined } from '@ant-design/icons';
 import { Button, Input } from 'antd';
 import styles from './chatUi.module.css';
 
@@ -6,6 +6,7 @@ interface ChatComposerProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: (message: string) => void;
+  onStop?: () => void;
   disabled?: boolean;
   loading?: boolean;
   webSearchEnabled: boolean;
@@ -17,6 +18,7 @@ export default function ChatComposer({
   value,
   onChange,
   onSubmit,
+  onStop,
   disabled = false,
   loading = false,
   webSearchEnabled,
@@ -63,16 +65,27 @@ export default function ChatComposer({
           aria-pressed={webSearchEnabled}
         />
 
-        <Button
-          type="primary"
-          shape="circle"
-          icon={<ArrowUpOutlined style={{ fontSize: 16, fontWeight: 'bold' }} />}
-          disabled={submitDisabled}
-          loading={loading}
-          onClick={handleSubmit}
-          className={styles.sendButton}
-          aria-label="发送消息"
-        />
+        {loading ? (
+          <Button
+            type="primary"
+            shape="circle"
+            icon={<BorderOutlined style={{ fontSize: 14, fontWeight: 'bold' }} />}
+            onClick={onStop}
+            className={styles.sendButton}
+            aria-label="停止生成"
+            danger
+          />
+        ) : (
+          <Button
+            type="primary"
+            shape="circle"
+            icon={<ArrowUpOutlined style={{ fontSize: 16, fontWeight: 'bold' }} />}
+            disabled={submitDisabled}
+            onClick={handleSubmit}
+            className={styles.sendButton}
+            aria-label="发送消息"
+          />
+        )}
       </div>
     </div>
   );

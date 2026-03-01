@@ -35,10 +35,16 @@ export function registerAgentIpc() {
 
       let finalResponse = "";
       try {
+        const ac = new AbortController();
+        const onCancel = () => ac.abort();
+        
+        // This is a simplified cancel approach for IPC; in reality we might need an explicit IPC cancel channel.
+        // For now, let's just make sure we pass the signal, and we can add true IPC cancel later if needed.
         for await (const chunk of runAgentChatStream({
           workspace,
           message: payload.message,
-          history
+          history,
+          signal: ac.signal
         })) {
           window.webContents.send("agent:chat-stream-chunk", chunk);
           if (chunk.type === "text") {

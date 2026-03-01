@@ -50,11 +50,26 @@ export default function ChatArea({
     );
   };
 
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+
   useEffect(() => {
     setStreamingAssistantId(null);
     setIsStreaming(false);
     setDraft('');
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+    }
   }, [activeThreadId]);
+
+  const handleStop = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+    }
+    setStreamingAssistantId(null);
+    setIsStreaming(false);
+  };
 
   const handleSubmit = async (rawMessage: string) => {
     const message = rawMessage.trim();
@@ -168,6 +183,9 @@ export default function ChatArea({
 
     const historySlice = [...(activeThread?.messages || []), { role: 'user', content: userContent }].slice(0, -1);
 
+    const ac = new AbortController();
+    setAbortController(ac);
+
     try {
       await backend.chatStream(
         {
@@ -179,6 +197,7 @@ export default function ChatArea({
           })),
         },
         {
+          signal: ac.signal,
           onChunk: (chunk: StreamChunk) => {
             if (chunk.type === 'thinking') {
               const mode = chunk.thinkingMode ?? 'delta';
@@ -395,6 +414,7 @@ export default function ChatArea({
              value={draft}
              onChange={setDraft}
              onSend={handleSubmit}
+             onStop={handleStop}
              disabled={!currentWorkspace}
              loading={isStreaming}
              webSearchEnabled={Boolean(currentWorkspace?.enableWebSearch)}
@@ -421,6 +441,7 @@ export default function ChatArea({
                 value={draft}
                 onChange={setDraft}
                 onSubmit={handleSubmit}
+                onStop={handleStop}
                 disabled={!currentWorkspace}
                 loading={isStreaming}
                 webSearchEnabled={Boolean(currentWorkspace?.enableWebSearch)}

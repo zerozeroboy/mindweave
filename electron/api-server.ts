@@ -311,11 +311,17 @@ async function handleChat(req: http.IncomingMessage, res: http.ServerResponse) {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
+  const ac = new AbortController();
+  req.on("close", () => {
+    ac.abort();
+  });
+
   try {
     for await (const chunk of runAgentChatStream({
       workspace,
       message: String(payload.message ?? ""),
-      history: Array.isArray(payload.history) ? payload.history : []
+      history: Array.isArray(payload.history) ? payload.history : [],
+      signal: ac.signal
     })) {
       logChunk(debugChunks, debugChunkMaxChars, requestId, chunk);
       writeEvent("chunk", chunk);

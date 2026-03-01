@@ -97,14 +97,15 @@ function parseSseFrame(frame: string) {
 }
 
 // 流式响应
-export async function* createStreamResponse(payload: Record<string, unknown>) {
+export async function* createStreamResponse(payload: Record<string, unknown> & { signal?: AbortSignal }) {
   const cfg = getConfig();
   if (!cfg.arkApiKey) {
     throw new Error("ARK_API_KEY 未配置");
   }
 
   const base = cfg.arkBaseUrl.replace(/\/+$/, "");
-  const requestBody = { ...payload, stream: true };
+  const { signal, ...restPayload } = payload;
+  const requestBody = { ...restPayload, stream: true };
   const requestId = randomUUID();
   const startedAt = Date.now();
   const enabled = cfg.debugModelIo;
@@ -129,7 +130,8 @@ export async function* createStreamResponse(payload: Record<string, unknown>) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${cfg.arkApiKey}`
     },
-    body: JSON.stringify(requestBody)
+    body: JSON.stringify(requestBody),
+    signal
   });
 
   if (!response.ok) {

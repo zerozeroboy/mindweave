@@ -6,6 +6,7 @@ interface WelcomeScreenProps {
   value: string;
   onChange: (value: string) => void;
   onSend: (message: string) => void;
+  onStop?: () => void;
   disabled?: boolean;
   loading?: boolean;
   webSearchEnabled: boolean;
@@ -17,6 +18,7 @@ export default function WelcomeScreen({
   value,
   onChange,
   onSend,
+  onStop,
   disabled = false,
   loading = false,
   webSearchEnabled,
@@ -66,6 +68,7 @@ export default function WelcomeScreen({
             value={value}
             onChange={onChange}
             onSubmit={onSend}
+            onStop={onStop}
             disabled={disabled}
             loading={loading}
             webSearchEnabled={webSearchEnabled}
