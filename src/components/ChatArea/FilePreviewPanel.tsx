@@ -1,5 +1,5 @@
-import { Button } from 'antd';
-import { CloseOutlined } from '@ant-design/icons';
+import { Button, Tooltip } from 'antd';
+import { CloseOutlined, ExportOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -15,103 +15,127 @@ export default function FilePreviewPanel({ width, filePreview, setFilePreview, o
 
   const isMarkdown = filePreview.path.toLowerCase().endsWith('.md');
   const lowerPath = filePreview.path.toLowerCase();
-  const isImage = (typeof filePreview.mime === "string" && filePreview.mime.startsWith("image/")) || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(lowerPath);
-  const content = filePreview.truncated ? filePreview.content + "\n\n*(Content truncated)*" : filePreview.content;
-
-  // Extract filename from path
+  const isImage = (typeof filePreview.mime === 'string' && filePreview.mime.startsWith('image/')) || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(lowerPath);
+  const content = filePreview.truncated ? `${filePreview.content}\n\n*(Content truncated)*` : filePreview.content;
   const filename = filePreview.path.split(/[\\/]/).pop() || filePreview.path;
 
   return (
-    <div style={{ 
-      width, 
-      minWidth: '300px',
-      maxWidth: '980px',
-      borderLeft: '1px solid #e5e7eb', 
-      display: 'flex', 
-      flexDirection: 'column',
-      background: '#fff',
-      height: '100%',
-      flexShrink: 0,
-      boxShadow: '-2px 0 8px rgba(0,0,0,0.05)',
-      zIndex: 10
-    }}>
-      {/* Header */}
-      <div style={{ 
-        padding: '12px 16px', 
-        borderBottom: '1px solid #e5e7eb', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        background: '#f9fafb',
-        flexShrink: 0
-      }}>
-        <div style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <span style={{ 
-            fontSize: 14, 
-            fontWeight: 600, 
-            color: '#1f2937', 
-            overflow: 'hidden', 
-            textOverflow: 'ellipsis', 
-            whiteSpace: 'nowrap'
-          }} title={filename}>
+    <div
+      style={{
+        width,
+        minWidth: '300px',
+        borderLeft: '1px solid #e5e7eb',
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#fff',
+        height: '100%',
+        flexShrink: 0,
+        boxShadow: '-2px 0 8px rgba(0,0,0,0.05)'
+      }}
+    >
+      <div
+        className="mw-file-preview-header"
+        style={{
+          padding: '12px 16px',
+          borderBottom: '1px solid #e5e7eb',
+          display: 'flex',
+          alignItems: 'center',
+          background: '#f9fafb',
+          flexShrink: 0,
+          position: 'relative'
+        }}
+      >
+        <div
+          className="mw-file-preview-header-meta"
+          style={{
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+            minWidth: 0,
+            paddingRight: 84
+          }}
+        >
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: '#1f2937',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+            title={filename}
+          >
             {filename}
           </span>
-          <span style={{ 
-            fontSize: 11, 
-            color: '#6b7280', 
-            overflow: 'hidden', 
-            textOverflow: 'ellipsis', 
-            whiteSpace: 'nowrap'
-          }} title={filePreview.path}>
+          <span
+            style={{
+              fontSize: 11,
+              color: '#6b7280',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+            title={filePreview.path}
+          >
             {filePreview.path}
           </span>
         </div>
-        {onOpenOriginal && (
-          <Button size="small" onClick={() => onOpenOriginal(filePreview.path)} style={{ marginRight: 8 }}>
-            打开原文件
-          </Button>
-        )}
-        <Button 
-          size="small" 
-          type="text" 
-          onClick={() => setFilePreview(null)} 
-          icon={<CloseOutlined />} 
-          style={{ color: '#6b7280', marginLeft: 8 }}
-        />
+
+        <div className="mw-file-preview-actions">
+          {onOpenOriginal && (
+            <Tooltip title="打开原文件">
+              <Button
+                size="small"
+                type="text"
+                onClick={() => onOpenOriginal(filePreview.path)}
+                icon={<ExportOutlined />}
+                className="mw-file-preview-open-btn"
+                aria-label="打开原文件"
+              />
+            </Tooltip>
+          )}
+          <Tooltip title="关闭预览">
+            <Button
+              size="small"
+              type="text"
+              onClick={() => setFilePreview(null)}
+              icon={<CloseOutlined />}
+              aria-label="关闭预览"
+              className="mw-file-preview-close-btn"
+            />
+          </Tooltip>
+        </div>
       </div>
-      
-      {/* Content */}
+
       <div className="mw-file-preview-content" style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
-        {isImage && filePreview.encoding === "base64" && filePreview.mime ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {filePreview.truncated ? (
-              <div style={{ fontSize: 12, color: "#b45309" }}>
-                图片内容被截断，建议调大读取上限。
-              </div>
-            ) : null}
+        {isImage && filePreview.encoding === 'base64' && filePreview.mime ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filePreview.truncated ? <div style={{ fontSize: 12, color: '#b45309' }}>图片内容被截断，建议调大读取上限。</div> : null}
             <img
               src={`data:${filePreview.mime};base64,${filePreview.content}`}
               alt={filename}
-              style={{ maxWidth: "100%", height: "auto", borderRadius: 6, border: "1px solid #e5e7eb" }}
+              style={{ maxWidth: '100%', height: 'auto', borderRadius: 6, border: '1px solid #e5e7eb' }}
             />
           </div>
         ) : isMarkdown ? (
           <div className="mw-markdown mw-file-preview-markdown max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {content}
-            </ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           </div>
         ) : (
-          <pre style={{ 
-            fontSize: 13, 
-            margin: 0, 
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            overflowWrap: 'anywhere',
-            color: '#374151',
-            lineHeight: 1.6
-          }}>
+          <pre
+            style={{
+              fontSize: 13,
+              margin: 0,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
+              color: '#374151',
+              lineHeight: 1.6
+            }}
+          >
             {content}
           </pre>
         )}

@@ -89,6 +89,23 @@ function sendJson(res: http.ServerResponse, status: number, body: unknown) {
   res.end(text);
 }
 
+function getHttpStatusFromError(error: unknown) {
+  const msg = (error as Error)?.message || String(error || "");
+  if (msg.includes("Unexpected token") || msg.includes("JSON")) return 400;
+  if (msg.includes("已存在")) return 409;
+  if (msg.includes("不存在")) return 404;
+  if (
+    msg.includes("不能为空") ||
+    msg.includes("非法") ||
+    msg.includes("必须") ||
+    msg.includes("不是目录") ||
+    msg.includes("过长")
+  ) {
+    return 400;
+  }
+  return 500;
+}
+
 async function readJsonBody<T>(req: http.IncomingMessage): Promise<T> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -361,7 +378,7 @@ const server = http.createServer(async (req, res) => {
     }
     sendJson(res, 404, { message: "Not found" });
   } catch (error) {
-    sendJson(res, 500, { message: (error as Error).message || String(error) });
+    sendJson(res, getHttpStatusFromError(error), { message: (error as Error).message || String(error) });
   }
 });
 

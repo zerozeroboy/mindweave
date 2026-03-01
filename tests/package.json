@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "sample:fetch-webpage": "npm --prefix .. run build:electron && node fetch-webpage.sample.mjs",
-    "test:unit": "npm --prefix .. run build:electron && node --test search-files.unit.mjs",
-    "test:api": "npm --prefix .. run build:electron && node --test api-server.unit.mjs",
-    "test:chat-ui": "node --test chat-ui-migration.unit.mjs chat-stream-handling.unit.mjs chat-style-cleanup.unit.mjs chat-empty-task-lazy-create.unit.mjs"
+    "test:unit": "npm --prefix .. run build:electron && node --test --experimental-test-isolation=none search-files.unit.mjs page-index.unit.mjs sync-conflict-protection.unit.mjs workspace-store.unit.mjs",
+    "test:api": "npm --prefix .. run build:electron && node --test --experimental-test-isolation=none api-server.unit.mjs",
+    "test:chat-ui": "node --test --experimental-test-isolation=none chat-ui-migration.unit.mjs chat-stream-handling.unit.mjs chat-style-cleanup.unit.mjs chat-empty-task-lazy-create.unit.mjs markdown-typography.unit.mjs",
+    "test:all": "npm run test:unit && npm run test:api && npm run test:chat-ui"
   }
 }

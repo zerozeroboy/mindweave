@@ -10,6 +10,14 @@ export type ThinkingEvent = {
   timestamp: number;
 };
 
+export type SourceCitation = {
+  id?: number;
+  path: string;
+  startLine?: number;
+  endLine?: number;
+  excerpt?: string;
+};
+
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "system" | "tool";
@@ -18,6 +26,7 @@ export type ChatMessage = {
   updatedAt?: number;
   // Extra fields for our internal state
   sources?: string[];
+  citations?: SourceCitation[];
   thoughtTrace?: string[]; // Deprecated?
   thinkingContent?: string; // Deprecated?
   thinkingEvents?: ThinkingEvent[]; // New structured thinking log

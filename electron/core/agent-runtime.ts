@@ -69,6 +69,13 @@ type ToolArgsStreamChunk = {
   };
 };
 
+type SourceCitation = {
+  path: string;
+  startLine?: number;
+  endLine?: number;
+  excerpt?: string;
+};
+
 const SYSTEM_PROMPT_RELATIVE_PATH = "electron/prompts/system-prompt.md";
 
 async function loadSystemPrompt(rootDir: string): Promise<string> {
@@ -304,6 +311,115 @@ function truncateHead(text: string, maxChars: number) {
   const t = String(text ?? "");
   if (t.length <= maxChars) return { text: t, truncated: false };
   return { text: t.slice(0, maxChars), truncated: true };
+}
+
+function normalizeExcerpt(raw: unknown, maxChars = 220): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const cleaned = raw.replace(/\s+/g, " ").trim();
+  if (!cleaned) return undefined;
+  return cleaned.length > maxChars ? `${cleaned.slice(0, maxChars)}...` : cleaned;
+}
+
+function collectSourceCitationsFromToolResult(raw: unknown): SourceCitation[] {
+  if (!raw || typeof raw !== "object") return [];
+  const obj = raw as Record<string, unknown>;
+  const out = new Map<string, SourceCitation>();
+
+  const push = (citation: SourceCitation) => {
+    if (!citation.path) return;
+    const key = `${citation.path}:${citation.startLine ?? ""}-${citation.endLine ?? ""}:${citation.excerpt ?? ""}`;
+    out.set(key, citation);
+  };
+
+  if (typeof obj.path === "string") {
+    const range = Array.isArray(obj.range) ? obj.range : null;
+    const startLine = range && typeof range[0] === "number" ? Number(range[0]) : undefined;
+    const endLine = range && typeof range[1] === "number" ? Number(range[1]) : undefined;
+    push({
+      path: obj.path,
+      startLine,
+      endLine,
+      excerpt: normalizeExcerpt(obj.content)
+    });
+  }
+
+  const files = Array.isArray(obj.files) ? obj.files : [];
+  for (const file of files) {
+    if (typeof file === "string") push({ path: file });
+  }
+
+  const hits = Array.isArray((obj as any).hits) ? (obj as any).hits : [];
+  for (const hit of hits) {
+    if (!hit || typeof hit !== "object") continue;
+    const h = hit as Record<string, unknown>;
+    const path = typeof h.path === "string" ? h.path : "";
+    if (!path) continue;
+    push({ path });
+    const matches = Array.isArray(h.matches) ? h.matches : [];
+    for (const match of matches.slice(0, 12)) {
+      if (!match || typeof match !== "object") continue;
+      const m = match as Record<string, unknown>;
+      const line = typeof m.line === "number" ? Number(m.line) : undefined;
+      push({
+        path,
+        startLine: line,
+        endLine: line,
+        excerpt: normalizeExcerpt(m.text)
+      });
+    }
+  }
+
+  const results = Array.isArray((obj as any).results) ? (obj as any).results : [];
+  for (const result of results.slice(0, 20)) {
+    if (!result || typeof result !== "object") continue;
+    const r = result as Record<string, unknown>;
+    const path = typeof r.path === "string" ? r.path : "";
+    if (!path) continue;
+    const startLine = typeof (r as any).line_num === "number" ? Number((r as any).line_num) : undefined;
+    const endLine = typeof (r as any).end_line_num === "number" ? Number((r as any).end_line_num) : startLine;
+    push({
+      path,
+      startLine,
+      endLine,
+      excerpt: normalizeExcerpt((r as any).summary ?? (r as any).title)
+    });
+  }
+
+  const nodes = Array.isArray((obj as any).nodes) ? (obj as any).nodes : [];
+  const fallbackPath = typeof obj.path === "string" ? obj.path : "";
+  for (const node of nodes.slice(0, 20)) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    const path = typeof n.path === "string" ? n.path : fallbackPath;
+    if (!path) continue;
+    const startLine =
+      typeof (n as any).startLine === "number"
+        ? Number((n as any).startLine)
+        : typeof (n as any).line_num === "number"
+          ? Number((n as any).line_num)
+          : undefined;
+    const endLine =
+      typeof (n as any).endLine === "number"
+        ? Number((n as any).endLine)
+        : typeof (n as any).end_line_num === "number"
+          ? Number((n as any).end_line_num)
+          : startLine;
+    push({
+      path,
+      startLine,
+      endLine,
+      excerpt: normalizeExcerpt((n as any).text ?? (n as any).summary ?? (n as any).title)
+    });
+  }
+
+  const documents = Array.isArray((obj as any).documents) ? (obj as any).documents : [];
+  for (const doc of documents.slice(0, 50)) {
+    if (!doc || typeof doc !== "object") continue;
+    const d = doc as Record<string, unknown>;
+    if (typeof d.path === "string") push({ path: d.path });
+  }
+
+  return [...out.values()];
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -563,6 +679,7 @@ export async function* runAgentChatStream(payload: {
   const systemPrompt = await loadSystemPrompt(cfg.rootDir);
   const input: unknown[] = [];
   const sources = new Set<string>();
+  const citations = new Map<string, SourceCitation>();
   const thoughtTrace: string[] = [];
   const emittedThinkingFallback = new Set<string>();
   const toolArgsBuffers = new Map<string, string>();
@@ -575,6 +692,12 @@ export async function* runAgentChatStream(payload: {
   let rounds = 0;
   let toolCalls = 0;
   const repeatedToolCalls = new Map<string, number>();
+  const buildDoneChunk = () => ({
+    type: "done" as const,
+    sources: [...sources],
+    citations: [...citations.values()].map((c, idx) => ({ id: idx + 1, ...c })),
+    thought_trace: [...new Set(thoughtTrace)]
+  });
 
   // ModelArk Responses API: input item uses { type:"message", role, content:"..." }
   input.push({
@@ -602,12 +725,12 @@ export async function* runAgentChatStream(payload: {
     rounds += 1;
     if (rounds > budget.maxRounds) {
       yield { type: "text", content: `\n\n[系统熔断] 工具轮次超过上限（${budget.maxRounds}）。请缩小问题范围后重试。` };
-      yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+      yield buildDoneChunk();
       return;
     }
     if (Date.now() - startedAtAll > budget.maxMs) {
       yield { type: "text", content: `\n\n[系统熔断] 对话耗时超过 ${Math.round(budget.maxMs / 1000)} 秒，请拆分任务后重试。` };
-      yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+      yield buildDoneChunk();
       return;
     }
     let hasProcessedChunk = false;
@@ -815,7 +938,7 @@ export async function* runAgentChatStream(payload: {
           toolCalls += 1;
           if (toolCalls > budget.maxToolCalls) {
             yield { type: "text", content: `\n\n[系统熔断] 工具调用次数超过上限（${budget.maxToolCalls}）。` };
-            yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+            yield buildDoneChunk();
             return;
           }
 
@@ -824,7 +947,7 @@ export async function* runAgentChatStream(payload: {
           repeatedToolCalls.set(toolCallKey, repeatedCount);
           if (repeatedCount > budget.maxRepeatedToolCall) {
             yield { type: "text", content: `\n\n[系统熔断] 检测到重复工具调用（${call.name}）超过阈值，已停止。` };
-            yield { type: "done", sources: [...sources], thought_trace: [...new Set(thoughtTrace)] };
+            yield buildDoneChunk();
             return;
           }
 
@@ -882,17 +1005,11 @@ export async function* runAgentChatStream(payload: {
 
           // 收集来源信息（仅在成功时有意义）
           if (toolOk) {
-            const toolPath = (toolResultObj as any).path;
-            if (typeof toolPath === "string") {
-              sources.add(toolPath);
-            }
-            const toolHits = (toolResultObj as any).hits;
-            if (Array.isArray(toolHits)) {
-              for (const hit of toolHits) {
-                if (hit && typeof hit === "object" && typeof (hit as any).path === "string") {
-                  sources.add(String((hit as any).path));
-                }
-              }
+            const extracted = collectSourceCitationsFromToolResult(toolResultObj);
+            for (const c of extracted) {
+              sources.add(c.path);
+              const key = `${c.path}:${c.startLine ?? ""}-${c.endLine ?? ""}:${c.excerpt ?? ""}`;
+              citations.set(key, c);
             }
           }
         }
@@ -919,16 +1036,7 @@ export async function* runAgentChatStream(payload: {
         yield toolEndChunk;
       }
 
-      if (!assistantText.includes("Sources:")) {
-        const list = [...sources];
-        const sourcesText = list.length > 0 ? list.map((s) => `- ${s}`).join("\n") : "(none)";
-        yield { type: "text", content: `\n\nSources:\n${sourcesText}` };
-      }
-      yield {
-        type: "done",
-        sources: [...sources],
-        thought_trace: [...new Set(thoughtTrace)]
-      };
+      yield buildDoneChunk();
       return;
     }
   }

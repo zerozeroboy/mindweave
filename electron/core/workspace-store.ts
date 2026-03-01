@@ -11,6 +11,31 @@ export type Workspace = {
   enableWebSearch?: boolean;
 };
 
+const RESERVED_WINDOWS_NAMES = new Set([
+  "con",
+  "prn",
+  "aux",
+  "nul",
+  "com1",
+  "com2",
+  "com3",
+  "com4",
+  "com5",
+  "com6",
+  "com7",
+  "com8",
+  "com9",
+  "lpt1",
+  "lpt2",
+  "lpt3",
+  "lpt4",
+  "lpt5",
+  "lpt6",
+  "lpt7",
+  "lpt8",
+  "lpt9"
+]);
+
 function getFallbackDataRoot() {
   if (process.platform === "win32") {
     const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
@@ -71,7 +96,29 @@ export async function listWorkspaces(): Promise<Workspace[]> {
   const text = await fs.readFile(workspacesFile, "utf-8");
   try {
     const parsed = JSON.parse(text) as unknown;
-    return Array.isArray(parsed) ? (parsed as Workspace[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    const out: Workspace[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") continue;
+      const obj = item as Record<string, unknown>;
+      try {
+        const name = normalizeWorkspaceName(obj.name);
+        const source_path = String(obj.source_path ?? "").trim();
+        const mirror_path = String(obj.mirror_path ?? "").trim();
+        const model = normalizeModel(obj.model);
+        if (!source_path || !mirror_path) continue;
+        out.push({
+          name,
+          source_path,
+          mirror_path,
+          model,
+          enableWebSearch: typeof obj.enableWebSearch === "boolean" ? obj.enableWebSearch : false
+        });
+      } catch {
+        continue;
+      }
+    }
+    return out;
   } catch (_error) {
     return [];
   }
@@ -83,26 +130,65 @@ async function saveWorkspaces(workspaces: Workspace[]) {
   await fs.writeFile(workspacesFile, JSON.stringify(workspaces, null, 2), "utf-8");
 }
 
+function normalizeWorkspaceName(raw: unknown) {
+  const name = String(raw ?? "").trim();
+  if (!name) throw new Error("工作空间名称不能为空");
+  if (name.length > 64) throw new Error("工作空间名称过长（最多 64 字符）");
+  if (/[\\/:*?"<>|\r\n\t]/.test(name)) {
+    throw new Error("工作空间名称包含非法字符");
+  }
+  if (name === "." || name === "..") {
+    throw new Error("工作空间名称非法");
+  }
+  const normalized = name.toLowerCase();
+  if (RESERVED_WINDOWS_NAMES.has(normalized)) {
+    throw new Error("工作空间名称为系统保留字");
+  }
+  return name;
+}
+
+async function normalizeSourcePath(raw: unknown) {
+  const sourcePath = String(raw ?? "").trim();
+  if (!sourcePath) throw new Error("source_path 不能为空");
+  if (!path.isAbsolute(sourcePath)) throw new Error("source_path 必须是绝对路径");
+  const st = await fs.stat(sourcePath).catch(() => null);
+  if (!st || !st.isDirectory()) throw new Error("source_path 不存在或不是目录");
+  return sourcePath;
+}
+
+function normalizeModel(raw: unknown) {
+  const model = String(raw ?? "").trim();
+  if (!model) throw new Error("model 不能为空");
+  return model;
+}
+
 export async function createWorkspace(payload: {
   name: string;
   source_path: string;
   model: string;
   enableWebSearch?: boolean;
 }): Promise<Workspace> {
+  const name = normalizeWorkspaceName(payload.name);
+  const source_path = await normalizeSourcePath(payload.source_path);
+  const model = normalizeModel(payload.model);
   const all = await listWorkspaces();
-  if (all.find((item) => item.name === payload.name)) {
+  if (all.find((item) => item.name.toLowerCase() === name.toLowerCase())) {
     throw new Error("工作空间名称已存在");
   }
 
   const { agentSpace } = getStorePaths();
-  const mirror_path = path.join(agentSpace, payload.name, "docs");
+  const mirror_path = path.resolve(agentSpace, name, "docs");
+  const relative = path.relative(agentSpace, mirror_path);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("工作空间路径非法");
+  }
   ensureDirSync(mirror_path);
 
   const workspace: Workspace = {
-    name: payload.name,
-    source_path: payload.source_path,
+    name,
+    source_path,
     mirror_path,
-    model: payload.model,
+    model,
     enableWebSearch: payload.enableWebSearch ?? false
   };
   all.push(workspace);
@@ -114,12 +200,18 @@ export async function updateWorkspace(
   name: string,
   updates: Partial<Pick<Workspace, "model" | "enableWebSearch">>
 ): Promise<Workspace> {
+  const safeName = normalizeWorkspaceName(name);
   const all = await listWorkspaces();
-  const workspace = all.find((item) => item.name === name);
+  const workspace = all.find((item) => item.name === safeName);
   if (!workspace) {
     throw new Error("工作空间不存在");
   }
-  Object.assign(workspace, updates);
+  if (Object.prototype.hasOwnProperty.call(updates, "model")) {
+    workspace.model = normalizeModel(updates.model);
+  }
+  if (typeof updates.enableWebSearch === "boolean") {
+    workspace.enableWebSearch = updates.enableWebSearch;
+  }
   await saveWorkspaces(all);
   return workspace;
 }

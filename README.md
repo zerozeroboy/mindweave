@@ -62,6 +62,7 @@ npm run electron
 - MIRROR_SHOW_BACKUPS：是否在镜像中展示备份文件（true/false）
 - AGENTOS_API_HOST：API 监听地址（默认 127.0.0.1）
 - AGENTOS_API_PORT：API 监听端口（默认 3189）
+- AGENTOS_PYTHON_BIN：文档转换使用的 Python 命令（可选；Windows 可设为 `py` 或 `python`）
 
 ## 常用命令
 
@@ -78,6 +79,8 @@ npm run electron
 ```bash
 npm --prefix tests run test:unit
 npm --prefix tests run test:api
+npm --prefix tests run test:chat-ui
+npm --prefix tests run test:all
 ```
 
 ## 架构概览
@@ -96,4 +99,3 @@ npm --prefix tests run test:api
 建议先阅读：
 
 - AGENTS.md：项目级约束与工作准则
-

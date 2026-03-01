@@ -81,7 +81,11 @@ export default function App() {
   };
   const getPreviewBounds = () => {
     const min = 320;
-    const max = Math.max(min, Math.min(980, Math.floor(window.innerWidth * 0.7)));
+    const minChatWidth = 320;
+    const resizeHandleWidth = 12;
+    const reserved = sidebarWidth + resizeHandleWidth * 2 + minChatWidth;
+    const available = Math.floor(window.innerWidth - reserved);
+    const max = Math.max(min, available);
     return { min, max };
   };
 
@@ -167,6 +171,11 @@ export default function App() {
     onResize();
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  useEffect(() => {
+    const previewBounds = getPreviewBounds();
+    setPreviewWidth((prev) => clamp(prev, previewBounds.min, previewBounds.max));
+  }, [sidebarWidth]);
 
   // --- Logic Helpers ---
 

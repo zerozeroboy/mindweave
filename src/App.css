@@ -152,11 +152,14 @@ body,
 
 .mw-resize-handle {
   position: relative;
-  width: 8px;
-  min-width: 8px;
+  width: 12px;
+  min-width: 12px;
+  flex: 0 0 12px;
   cursor: col-resize;
   background: transparent;
-  z-index: 20;
+  z-index: 50;
+  pointer-events: auto;
+  touch-action: none;
 }
 
 .mw-resize-handle::before {
@@ -164,7 +167,7 @@ body,
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 3px;
+  left: 5px;
   width: 2px;
   border-radius: 2px;
   background: transparent;
@@ -312,6 +315,42 @@ body,
 .mw-file-preview-content {
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.mw-file-preview-header-meta {
+  min-width: 0;
+}
+
+.mw-file-preview-actions {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 64px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mw-file-preview-actions .ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px !important;
+  padding: 0 !important;
+}
+
+.mw-file-preview-open-btn {
+  color: #374151 !important;
+}
+
+.mw-file-preview-open-btn:hover,
+.mw-file-preview-close-btn:hover {
+  background: #eef2f7 !important;
 }
 
 .mw-file-preview-markdown p,

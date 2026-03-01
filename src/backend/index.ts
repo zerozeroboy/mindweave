@@ -170,7 +170,7 @@ function createHttpBackend(): Backend {
       });
 
       if (!gotDone) {
-        handlers.onChunk({ type: "done", sources: [], thought_trace: [] });
+        handlers.onChunk({ type: "done", sources: [], citations: [], thought_trace: [] });
       }
     }
   };

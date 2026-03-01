@@ -21,9 +21,14 @@ type SyncState = {
 };
 
 function ensureDirSync(target: string) {
-  if (!fsSync.existsSync(target)) {
-    fsSync.mkdirSync(target, { recursive: true });
+  if (fsSync.existsSync(target)) {
+    const stat = fsSync.statSync(target);
+    if (!stat.isDirectory()) {
+      throw new Error(`路径不是目录: ${target}`);
+    }
+    return;
   }
+  fsSync.mkdirSync(target, { recursive: true });
 }
 
 function sha256(input: string | Buffer) {
@@ -87,29 +92,68 @@ function getMirrorPath(sourceFile: string, sourceRoot: string, mirrorRoot: strin
   };
 }
 
-async function runPythonConverter(sourcePath: string, relativeSourcePath: string): Promise<string> {
+function getPythonCommandCandidates() {
+  const env = typeof process.env.AGENTOS_PYTHON_BIN === "string" ? process.env.AGENTOS_PYTHON_BIN.trim() : "";
+  const candidates: Array<{ command: string; argsPrefix: string[] }> = [];
+  if (env) {
+    candidates.push({ command: env, argsPrefix: [] });
+  }
+  if (process.platform === "win32") {
+    candidates.push({ command: "py", argsPrefix: ["-3"] });
+    candidates.push({ command: "python", argsPrefix: [] });
+    candidates.push({ command: "python3", argsPrefix: [] });
+  } else {
+    candidates.push({ command: "python3", argsPrefix: [] });
+    candidates.push({ command: "python", argsPrefix: [] });
+  }
+  return candidates;
+}
+
+async function runWithPython(sourcePath: string, relativeSourcePath: string) {
   const scriptPath = path.join(process.cwd(), "scripts", "convert_document.py");
-  return await new Promise((resolve, reject) => {
-    const proc = spawn("python3", [scriptPath, sourcePath, relativeSourcePath], {
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-    let stdout = "";
-    let stderr = "";
-    proc.stdout.on("data", (d) => {
-      stdout += String(d);
-    });
-    proc.stderr.on("data", (d) => {
-      stderr += String(d);
-    });
-    proc.on("error", (error) => reject(error));
-    proc.on("close", (code) => {
-      if (code === 0) {
-        resolve(stdout);
-        return;
+  const candidates = getPythonCommandCandidates();
+  const launchErrors: string[] = [];
+
+  for (const item of candidates) {
+    try {
+      const result = await new Promise<string>((resolve, reject) => {
+        const proc = spawn(item.command, [...item.argsPrefix, scriptPath, sourcePath, relativeSourcePath], {
+          stdio: ["ignore", "pipe", "pipe"]
+        });
+        let stdout = "";
+        let stderr = "";
+        proc.stdout.on("data", (d) => {
+          stdout += String(d);
+        });
+        proc.stderr.on("data", (d) => {
+          stderr += String(d);
+        });
+        proc.on("error", (error) => reject(error));
+        proc.on("close", (code) => {
+          if (code === 0) {
+            resolve(stdout);
+            return;
+          }
+          reject(new Error(stderr || `converter exit code ${code}`));
+        });
+      });
+      return result;
+    } catch (error) {
+      const msg = (error as Error).message || String(error);
+      launchErrors.push(`${item.command}${item.argsPrefix.length ? ` ${item.argsPrefix.join(" ")}` : ""}: ${msg}`);
+      const code = (error as NodeJS.ErrnoException).code;
+      const isLaunchNotFound = code === "ENOENT";
+      if (!isLaunchNotFound) {
+        throw error;
       }
-      reject(new Error(stderr || `converter exit code ${code}`));
-    });
-  });
+    }
+  }
+
+  throw new Error(`未找到可用 Python 解释器（尝试: ${launchErrors.join(" | ")}）`);
+}
+
+async function runPythonConverter(sourcePath: string, relativeSourcePath: string): Promise<string> {
+  return runWithPython(sourcePath, relativeSourcePath);
 }
 
 async function convertSourceFile(filePath: string, ext: string, relativeSourcePath: string) {
@@ -138,11 +182,15 @@ export async function syncWorkspaceFiles(workspace: Workspace) {
   const state = await readSyncState(workspace);
   const sourceFiles = await walkFiles(workspace.source_path);
   let filesConverted = 0;
+  let staleStateRemoved = 0;
   const conflicts: string[] = [];
   const skippedLocalChanges: string[] = [];
+  const staleMirrorLocalChanges: string[] = [];
+  const sourceSet = new Set<string>();
 
   for (const sourceFile of sourceFiles) {
     const { ext, relativeSourcePath, mirrorPath } = getMirrorPath(sourceFile, workspace.source_path, workspace.mirror_path);
+    sourceSet.add(relativeSourcePath);
     const content = await convertSourceFile(sourceFile, ext, relativeSourcePath);
     if (content === null) continue;
 
@@ -193,27 +241,52 @@ export async function syncWorkspaceFiles(workspace: Workspace) {
     }
   }
 
+  for (const [relativeSourcePath, prev] of Object.entries(state.files)) {
+    if (sourceSet.has(relativeSourcePath)) continue;
+    const mirrorPath = path.join(workspace.mirror_path, prev.mirrorPath);
+    if (!fsSync.existsSync(mirrorPath)) {
+      delete state.files[relativeSourcePath];
+      staleStateRemoved += 1;
+      continue;
+    }
+    const mirrorHashCurrent = await readFileHash(mirrorPath);
+    if (mirrorHashCurrent === prev.mirrorHash) {
+      await fs.unlink(mirrorPath).catch(() => {});
+      delete state.files[relativeSourcePath];
+      staleStateRemoved += 1;
+      continue;
+    }
+    staleMirrorLocalChanges.push(prev.mirrorPath);
+  }
+
   await writeSyncState(workspace, state);
 
   let indexUpdated = 0;
   let indexTotal = 0;
+  let indexError = "";
   try {
     const r = await buildWorkspacePageIndex({ workspace });
     indexUpdated = r.updated;
     indexTotal = r.total;
-  } catch (_error) {
+  } catch (error) {
     indexUpdated = -1;
     indexTotal = -1;
+    indexError = (error as Error).message || String(error);
   }
 
   const warnings: string[] = [];
   if (skippedLocalChanges.length > 0) warnings.push(`镜像本地改动保留: ${skippedLocalChanges.length}`);
   if (conflicts.length > 0) warnings.push(`冲突副本: ${conflicts.length}`);
+  if (staleStateRemoved > 0) warnings.push(`清理失效镜像: ${staleStateRemoved}`);
+  if (staleMirrorLocalChanges.length > 0) warnings.push(`保留孤儿镜像改动: ${staleMirrorLocalChanges.length}`);
+  if (indexError) warnings.push(`索引失败: ${indexError}`);
 
   return {
     success: true,
     files_converted: filesConverted,
-    page_index: { updated: indexUpdated, total: indexTotal },
+    stale_state_removed: staleStateRemoved,
+    stale_mirror_local_changes: staleMirrorLocalChanges,
+    page_index: { updated: indexUpdated, total: indexTotal, error: indexError || undefined },
     conflicts,
     skipped_local_changes: skippedLocalChanges,
     message: `同步完成: ${filesConverted} 个文件${warnings.length ? `（${warnings.join("，")}）` : ""}`
