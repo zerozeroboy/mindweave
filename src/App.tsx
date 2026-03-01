@@ -191,15 +191,6 @@ export default function App() {
     }
   };
 
-  const handleOpenOriginalFile = async (mirrorPath: string) => {
-    if (!currentWorkspace) return;
-    try {
-      await backend.openSourceFile(currentWorkspace.name, mirrorPath);
-    } catch (error) {
-      message.error(`打开原文件失败: ${(error as Error).message}`);
-    }
-  };
-
   const loadMirrorDir = async (relativeDir: string) => {
     if (!currentWorkspace) return;
     try {
@@ -430,7 +421,6 @@ export default function App() {
                   width={previewWidth}
                   filePreview={filePreview}
                   setFilePreview={setFilePreview}
-                  onOpenOriginal={handleOpenOriginalFile}
                 />
               </>
             )}

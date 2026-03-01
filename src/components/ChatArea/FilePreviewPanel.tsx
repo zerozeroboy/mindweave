@@ -1,5 +1,5 @@
 import { Button, Tooltip } from 'antd';
-import { CloseOutlined, ExportOutlined } from '@ant-design/icons';
+import { CloseOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -7,10 +7,9 @@ interface FilePreviewPanelProps {
   width: number;
   filePreview: MirrorReadFileResult | null;
   setFilePreview: (val: MirrorReadFileResult | null) => void;
-  onOpenOriginal?: (mirrorPath: string) => void;
 }
 
-export default function FilePreviewPanel({ width, filePreview, setFilePreview, onOpenOriginal }: FilePreviewPanelProps) {
+export default function FilePreviewPanel({ width, filePreview, setFilePreview }: FilePreviewPanelProps) {
   if (!filePreview) return null;
 
   const isMarkdown = filePreview.path.toLowerCase().endsWith('.md');
@@ -82,20 +81,7 @@ export default function FilePreviewPanel({ width, filePreview, setFilePreview, o
             {filePreview.path}
           </span>
         </div>
-
         <div className="mw-file-preview-actions">
-          {onOpenOriginal && (
-            <Tooltip title="Open original file">
-              <Button
-                size="small"
-                type="text"
-                onClick={() => onOpenOriginal(filePreview.path)}
-                icon={<ExportOutlined />}
-                className="mw-file-preview-open-btn"
-                aria-label="Open original file"
-              />
-            </Tooltip>
-          )}
           <Tooltip title="Close preview">
             <Button
               size="small"
