@@ -19,6 +19,7 @@ export type Backend = {
   syncWorkspace: (workspaceName: string) => Promise<SyncResult>;
   listMirrorDir: (workspaceName: string, relativeDir?: string) => Promise<MirrorListDirResult>;
   readMirrorFile: (workspaceName: string, filePath: string, maxBytes?: number) => Promise<MirrorReadFileResult>;
+  openSourceFile: (workspaceName: string, mirrorPath: string) => Promise<{ success: boolean; path?: string }>;
   chatStream: (payload: ChatStartPayload, handlers: ChatStreamHandlers) => Promise<void>;
 };
 
@@ -141,6 +142,7 @@ function createHttpBackend(): Backend {
         `/api/workspaces/${encodeURIComponent(workspaceName)}/mirror/readFile?${q.toString()}`
       );
     },
+    openSourceFile: async (_workspaceName, _mirrorPath) => ({ success: false }),
     chatStream: async (payload, handlers) => {
       let gotDone = false;
       const res = await fetch(`${base}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -184,6 +186,7 @@ export function getBackend(): Backend {
       syncWorkspace: (workspaceName) => window.electronAPI!.syncWorkspace(workspaceName),
       listMirrorDir: (workspaceName, relativeDir) => window.electronAPI!.listMirrorDir(workspaceName, relativeDir),
       readMirrorFile: (workspaceName, filePath, maxBytes) => window.electronAPI!.readMirrorFile(workspaceName, filePath, maxBytes),
+      openSourceFile: (workspaceName, mirrorPath) => window.electronAPI!.openSourceFile(workspaceName, mirrorPath),
       chatStream: async (payload, handlers) => {
         const cleanupChunk = window.electronAPI!.onChatStreamChunk((chunk) => handlers.onChunk(chunk));
         const cleanupError = window.electronAPI!.onChatStreamError((err) => handlers.onError(err));

@@ -18,6 +18,8 @@ interface ChatAreaProps {
   setActiveThreadId: (id: string) => void;
   setThreads: React.Dispatch<React.SetStateAction<ChatThread[]>>;
   onToggleWebSearch: (checked: boolean) => void;
+  onOpenSourceFile: (path: string) => void;
+  suggestedPrompts?: string[];
 }
 
 export default function ChatArea({ 
@@ -27,7 +29,9 @@ export default function ChatArea({
   threads,
   setActiveThreadId,
   setThreads,
-  onToggleWebSearch
+  onToggleWebSearch,
+  onOpenSourceFile,
+  suggestedPrompts = []
 }: ChatAreaProps) {
   const isEmptyThread = !activeThread || activeThread.messages.length === 0;
   const [streamingAssistantId, setStreamingAssistantId] = useState<string | null>(null);
@@ -346,7 +350,14 @@ export default function ChatArea({
       return {
         key: message.id,
         role: isAssistant ? 'assistant' : 'user',
-        content: message.content,
+        content: isAssistant ? (
+          <div>
+            <div className="mw-markdown">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || ''}</ReactMarkdown>
+            </div>
+            <SourceList sources={message.sources || []} onOpenSourceFile={onOpenSourceFile} />
+          </div>
+        ) : message.content,
         header:
           isAssistant && thinkingEvents && thinkingEvents.length > 0 ? (
             <ThinkingProcess
@@ -356,20 +367,14 @@ export default function ChatArea({
           ) : undefined,
       };
     });
-  }, [activeThread?.messages, streamingAssistantId]);
+  }, [activeThread?.messages, onOpenSourceFile, streamingAssistantId]);
 
   const roles = useMemo(
     () => ({
       assistant: {
         placement: 'start' as const,
         variant: 'borderless' as const,
-        messageRender: (content: string) => (
-          <div className="mw-markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {content || ''}
-            </ReactMarkdown>
-          </div>
-        ),
+        messageRender: (content: any) => content,
       },
       user: {
         placement: 'end' as const,
@@ -394,6 +399,7 @@ export default function ChatArea({
              loading={isStreaming}
              webSearchEnabled={Boolean(currentWorkspace?.enableWebSearch)}
              onToggleWebSearch={onToggleWebSearch}
+             suggestedPrompts={suggestedPrompts}
            />
         </div>
       )}
@@ -424,6 +430,42 @@ export default function ChatArea({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SourceList({ sources, onOpenSourceFile }: { sources: string[]; onOpenSourceFile: (path: string) => void }) {
+  const uniqueSources = Array.from(new Set(sources));
+
+  return (
+    <div style={{ marginTop: 10, borderTop: '1px dashed #e8e8e8', paddingTop: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <strong style={{ fontSize: 12 }}>Sources</strong>
+        <button
+          type="button"
+          style={{ border: 0, background: 'transparent', color: '#666', cursor: 'pointer', fontSize: 12 }}
+          onClick={() => navigator.clipboard.writeText(uniqueSources.length > 0 ? uniqueSources.join('\n') : '(none)')}
+        >
+          复制
+        </button>
+      </div>
+      {uniqueSources.length === 0 ? (
+        <div style={{ fontSize: 12, color: '#999' }}>Sources: (none)</div>
+      ) : (
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
+          {uniqueSources.map((source) => (
+            <li key={source} style={{ fontSize: 12, marginBottom: 2 }}>
+              <button
+                type="button"
+                onClick={() => onOpenSourceFile(source)}
+                style={{ border: 0, background: 'transparent', color: '#1677ff', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+              >
+                {source}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

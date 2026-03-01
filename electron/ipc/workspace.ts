@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from "electron";
+import { BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createWorkspace, listWorkspaces, updateWorkspace } from "../core/workspace-store.js";
@@ -155,6 +155,31 @@ export function registerWorkspaceIpc() {
       } finally {
         await fh.close();
       }
+    }
+  );
+
+  ipcMain.handle(
+    "workspace:source:open",
+    async (_event, payload: { workspaceName: string; mirrorPath: string }): Promise<{ success: boolean; path?: string }> => {
+      const list = await listWorkspaces();
+      const workspace = list.find((item) => item.name === payload.workspaceName);
+      if (!workspace) throw new Error("工作空间不存在");
+
+      const mirrorRelative = String(payload.mirrorPath ?? "").replace(/\\/g, "/");
+      const baseRelative = mirrorRelative.replace(/\.md$/i, "");
+      const candidates = [".md", ".txt", ".pdf", ".docx", ".pptx", ".xlsx", ".csv", ".json"]
+        .map((ext) => path.join(workspace.source_path, `${baseRelative}${ext}`));
+
+      for (const candidate of candidates) {
+        try {
+          await fs.access(candidate);
+          await shell.openPath(candidate);
+          return { success: true, path: candidate };
+        } catch {
+          // continue
+        }
+      }
+      throw new Error("未找到对应原始文件");
     }
   );
 }

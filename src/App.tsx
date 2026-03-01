@@ -61,6 +61,18 @@ export default function App() {
     return threads.find((t) => t.id === activeThreadId) || null;
   }, [threads, activeThreadId]);
 
+  const suggestedPrompts = useMemo(() => {
+    const rootEntries = dirCache['.'] || [];
+    const files = rootEntries.filter((e) => e.kind === 'file').map((e) => e.name.toLowerCase());
+    const hasMd = files.some((f) => f.endsWith('.md'));
+    const hasData = files.some((f) => f.endsWith('.xlsx') || f.endsWith('.csv'));
+    const prompts: string[] = [];
+    if (hasMd) prompts.push('先总结一下这个工作区里文档的关键结论。');
+    if (hasData) prompts.push('请从数据文件中提取关键指标并做简要分析。');
+    prompts.push('请列出当前工作区最值得优先处理的 3 件事。');
+    return prompts.slice(0, 3);
+  }, [dirCache]);
+
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
   const getSidebarBounds = () => {
     const min = 220;
@@ -167,6 +179,15 @@ export default function App() {
       }
     } catch (error) {
       message.error(`Failed to load workspaces: ${(error as Error).message}`);
+    }
+  };
+
+  const handleOpenOriginalFile = async (mirrorPath: string) => {
+    if (!currentWorkspace) return;
+    try {
+      await backend.openSourceFile(currentWorkspace.name, mirrorPath);
+    } catch (error) {
+      message.error(`打开原文件失败: ${(error as Error).message}`);
     }
   };
 
@@ -382,6 +403,8 @@ export default function App() {
               setActiveThreadId={setActiveThreadId}
               setThreads={setThreads}
               onToggleWebSearch={handleToggleWebSearch}
+              onOpenSourceFile={openFile}
+              suggestedPrompts={suggestedPrompts}
             />
 
             {/* File Preview Panel */}
@@ -398,6 +421,7 @@ export default function App() {
                   width={previewWidth}
                   filePreview={filePreview}
                   setFilePreview={setFilePreview}
+                  onOpenOriginal={handleOpenOriginalFile}
                 />
               </>
             )}

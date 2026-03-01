@@ -10,6 +10,7 @@ interface WelcomeScreenProps {
   loading?: boolean;
   webSearchEnabled: boolean;
   onToggleWebSearch: (checked: boolean) => void;
+  suggestedPrompts?: string[];
 }
 
 export default function WelcomeScreen({
@@ -19,7 +20,8 @@ export default function WelcomeScreen({
   disabled = false,
   loading = false,
   webSearchEnabled,
-  onToggleWebSearch
+  onToggleWebSearch,
+  suggestedPrompts = []
 }: WelcomeScreenProps) {
   const { token } = theme.useToken();
 
@@ -45,6 +47,20 @@ export default function WelcomeScreen({
       </h1>
       
       <div className={styles.welcomeShell}>
+        {suggestedPrompts.length > 0 && (
+          <div style={{ marginBottom: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {suggestedPrompts.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => onSend(prompt)}
+                style={{ border: '1px solid #e5e5e5', borderRadius: 999, background: '#fff', padding: '4px 10px', cursor: 'pointer' }}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        )}
         <div className={styles.welcomeInputShell}>
           <ChatComposer
             value={value}
