@@ -9,7 +9,6 @@ export type Workspace = {
   mirror_path: string;
   model: string;
   enableWebSearch?: boolean;
-};
 
 const RESERVED_WINDOWS_NAMES = new Set([
   "con",
@@ -107,15 +106,13 @@ export async function listWorkspaces(): Promise<Workspace[]> {
         const mirror_path = String(obj.mirror_path ?? "").trim();
         const model = normalizeModel(obj.model);
         if (!source_path || !mirror_path) continue;
-        out.push({
           name,
           source_path,
           mirror_path,
           model,
           enableWebSearch: typeof obj.enableWebSearch === "boolean" ? obj.enableWebSearch : false
         });
-      } catch {
-        continue;
+          enableWebSearch: typeof obj.enableWebSearch === "boolean" ? obj.enableWebSearch : false
       }
     }
     return out;
@@ -165,18 +162,11 @@ function normalizeModel(raw: unknown) {
 export async function createWorkspace(payload: {
   name: string;
   source_path: string;
-  model: string;
-  enableWebSearch?: boolean;
-}): Promise<Workspace> {
-  const name = normalizeWorkspaceName(payload.name);
-  const source_path = await normalizeSourcePath(payload.source_path);
-  const model = normalizeModel(payload.model);
   const all = await listWorkspaces();
   if (all.find((item) => item.name.toLowerCase() === name.toLowerCase())) {
     throw new Error("工作空间名称已存在");
   }
 
-  const { agentSpace } = getStorePaths();
   const mirror_path = path.resolve(agentSpace, name, "docs");
   const relative = path.relative(agentSpace, mirror_path);
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
@@ -199,8 +189,7 @@ export async function createWorkspace(payload: {
 export async function updateWorkspace(
   name: string,
   updates: Partial<Pick<Workspace, "model" | "enableWebSearch">>
-): Promise<Workspace> {
-  const safeName = normalizeWorkspaceName(name);
+    enableWebSearch: payload.enableWebSearch ?? false
   const all = await listWorkspaces();
   const workspace = all.find((item) => item.name === safeName);
   if (!workspace) {
@@ -209,7 +198,7 @@ export async function updateWorkspace(
   if (Object.prototype.hasOwnProperty.call(updates, "model")) {
     workspace.model = normalizeModel(updates.model);
   }
-  if (typeof updates.enableWebSearch === "boolean") {
+  updates: Partial<Pick<Workspace, "model" | "enableWebSearch">>
     workspace.enableWebSearch = updates.enableWebSearch;
   }
   await saveWorkspaces(all);

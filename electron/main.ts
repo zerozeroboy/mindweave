@@ -1,6 +1,5 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, type NativeImage } from "electron";
 import fs from "node:fs";
-import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerWorkspaceIpc } from "./ipc/workspace.js";
@@ -37,7 +36,7 @@ if (app.isPackaged) {
         if (win.isMinimized()) win.restore();
         win.focus();
       }
-      void createWindow();
+      createWindow();
     });
   }
 }
@@ -105,32 +104,7 @@ function registerWindowControlsIpc() {
   });
 }
 
-function probeHttpOk(url: string, timeoutMs = 400): Promise<boolean> {
-  return new Promise((resolve) => {
-    const req = http.get(url, (res) => {
-      res.resume();
-      resolve((res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300);
-    });
-    req.setTimeout(timeoutMs, () => {
-      req.destroy();
-      resolve(false);
-    });
-    req.on("error", () => resolve(false));
-  });
-}
-
-async function resolveDevServerUrl() {
-  const envUrl = process.env.VITE_DEV_SERVER_URL?.trim();
-  if (envUrl) return envUrl;
-  for (let port = 5183; port >= 5173; port -= 1) {
-    const base = `http://127.0.0.1:${port}`;
-    const ok = await probeHttpOk(`${base}/@vite/client`);
-    if (ok) return base;
-  }
-  return "http://127.0.0.1:5173";
-}
-
-async function createWindow() {
+function createWindow() {
   const icon = resolveWindowIcon();
   const win = new BrowserWindow({
     width: 1320,
@@ -153,10 +127,9 @@ async function createWindow() {
   win.on("unmaximize", () => win.webContents.send("window:maximized-changed", false));
   if (app.isPackaged) {
     const indexPath = path.join(__dirname, "..", "dist", "index.html");
-    await win.loadFile(indexPath);
+    win.loadFile(indexPath);
   } else {
-    const devUrl = await resolveDevServerUrl();
-    await win.loadURL(devUrl);
+    win.loadURL("http://127.0.0.1:5173");
   }
 }
 
@@ -170,7 +143,7 @@ app.whenReady().then(() => {
   registerWorkspaceIpc();
   registerAgentIpc();
   registerWindowControlsIpc();
-  void createWindow();
+  createWindow();
 });
 
 app.on("window-all-closed", () => {
