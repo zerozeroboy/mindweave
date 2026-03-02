@@ -69,6 +69,13 @@ type ToolArgsStreamChunk = {
   };
 };
 
+type SourceCitation = {
+  path: string;
+  startLine?: number;
+  endLine?: number;
+  excerpt?: string;
+};
+
 const SYSTEM_PROMPT_RELATIVE_PATH = "electron/prompts/system-prompt.md";
 
 async function loadSystemPrompt(rootDir: string): Promise<string> {
@@ -210,12 +217,32 @@ function getReasoningTrace(response: ModelResponse): string[] {
 function getReasoningDelta(chunk: ModelResponse | StreamEvent): string[] {
   const evt = chunk as StreamEvent;
   const eventType = (evt.type ?? "").toLowerCase();
-  if (eventType.includes("reasoning") || eventType.includes("thinking")) {
-    return [...collectTextFromUnknown(evt.delta), ...collectTextFromUnknown(evt.text), ...collectTextFromUnknown(evt.content), ...collectTextFromUnknown(evt.reasoning_text)]
-      .map((text) => text)
-      .filter((text) => text.replace(/\s/g, "").length > 0);
+  const isReasoningDelta =
+    (eventType.includes("reasoning") || eventType.includes("thinking")) &&
+    eventType.endsWith(".delta");
+  if (!isReasoningDelta) return [];
+
+  const candidates: string[] = [];
+  if (typeof evt.delta === "string") {
+    candidates.push(evt.delta);
+  } else {
+    candidates.push(...collectTextFromUnknown(evt.delta));
   }
-  return [];
+  if (candidates.length === 0 && typeof evt.reasoning_text === "string") {
+    candidates.push(evt.reasoning_text);
+  }
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const text of candidates) {
+    if (text.replace(/\s/g, "").length === 0) continue;
+    const key = text.replace(/\s+/g, " ").trim();
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+  }
+  return out;
 }
 
 function safeParseJsonObject(raw: unknown): Record<string, unknown> {
@@ -284,6 +311,115 @@ function truncateHead(text: string, maxChars: number) {
   const t = String(text ?? "");
   if (t.length <= maxChars) return { text: t, truncated: false };
   return { text: t.slice(0, maxChars), truncated: true };
+}
+
+function normalizeExcerpt(raw: unknown, maxChars = 220): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const cleaned = raw.replace(/\s+/g, " ").trim();
+  if (!cleaned) return undefined;
+  return cleaned.length > maxChars ? `${cleaned.slice(0, maxChars)}...` : cleaned;
+}
+
+function collectSourceCitationsFromToolResult(raw: unknown): SourceCitation[] {
+  if (!raw || typeof raw !== "object") return [];
+  const obj = raw as Record<string, unknown>;
+  const out = new Map<string, SourceCitation>();
+
+  const push = (citation: SourceCitation) => {
+    if (!citation.path) return;
+    const key = `${citation.path}:${citation.startLine ?? ""}-${citation.endLine ?? ""}:${citation.excerpt ?? ""}`;
+    out.set(key, citation);
+  };
+
+  if (typeof obj.path === "string") {
+    const range = Array.isArray(obj.range) ? obj.range : null;
+    const startLine = range && typeof range[0] === "number" ? Number(range[0]) : undefined;
+    const endLine = range && typeof range[1] === "number" ? Number(range[1]) : undefined;
+    push({
+      path: obj.path,
+      startLine,
+      endLine,
+      excerpt: normalizeExcerpt(obj.content)
+    });
+  }
+
+  const files = Array.isArray(obj.files) ? obj.files : [];
+  for (const file of files) {
+    if (typeof file === "string") push({ path: file });
+  }
+
+  const hits = Array.isArray((obj as any).hits) ? (obj as any).hits : [];
+  for (const hit of hits) {
+    if (!hit || typeof hit !== "object") continue;
+    const h = hit as Record<string, unknown>;
+    const path = typeof h.path === "string" ? h.path : "";
+    if (!path) continue;
+    push({ path });
+    const matches = Array.isArray(h.matches) ? h.matches : [];
+    for (const match of matches.slice(0, 12)) {
+      if (!match || typeof match !== "object") continue;
+      const m = match as Record<string, unknown>;
+      const line = typeof m.line === "number" ? Number(m.line) : undefined;
+      push({
+        path,
+        startLine: line,
+        endLine: line,
+        excerpt: normalizeExcerpt(m.text)
+      });
+    }
+  }
+
+  const results = Array.isArray((obj as any).results) ? (obj as any).results : [];
+  for (const result of results.slice(0, 20)) {
+    if (!result || typeof result !== "object") continue;
+    const r = result as Record<string, unknown>;
+    const path = typeof r.path === "string" ? r.path : "";
+    if (!path) continue;
+    const startLine = typeof (r as any).line_num === "number" ? Number((r as any).line_num) : undefined;
+    const endLine = typeof (r as any).end_line_num === "number" ? Number((r as any).end_line_num) : startLine;
+    push({
+      path,
+      startLine,
+      endLine,
+      excerpt: normalizeExcerpt((r as any).summary ?? (r as any).title)
+    });
+  }
+
+  const nodes = Array.isArray((obj as any).nodes) ? (obj as any).nodes : [];
+  const fallbackPath = typeof obj.path === "string" ? obj.path : "";
+  for (const node of nodes.slice(0, 20)) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    const path = typeof n.path === "string" ? n.path : fallbackPath;
+    if (!path) continue;
+    const startLine =
+      typeof (n as any).startLine === "number"
+        ? Number((n as any).startLine)
+        : typeof (n as any).line_num === "number"
+          ? Number((n as any).line_num)
+          : undefined;
+    const endLine =
+      typeof (n as any).endLine === "number"
+        ? Number((n as any).endLine)
+        : typeof (n as any).end_line_num === "number"
+          ? Number((n as any).end_line_num)
+          : startLine;
+    push({
+      path,
+      startLine,
+      endLine,
+      excerpt: normalizeExcerpt((n as any).text ?? (n as any).summary ?? (n as any).title)
+    });
+  }
+
+  const documents = Array.isArray((obj as any).documents) ? (obj as any).documents : [];
+  for (const doc of documents.slice(0, 50)) {
+    if (!doc || typeof doc !== "object") continue;
+    const d = doc as Record<string, unknown>;
+    if (typeof d.path === "string") push({ path: d.path });
+  }
+
+  return [...out.values()];
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -516,6 +652,8 @@ function summarizeToolEnd(
     if (action === "created") details.push("结果：已创建");
     const backup = typeof (toolResult as any).backup === "string" ? String((toolResult as any).backup) : "";
     if (backup) details.push(`备份：${backup}`);
+    const diff = typeof (toolResult as any).diff === "string" ? String((toolResult as any).diff) : "";
+    if (diff) details.push(`差异预览：\n${diff}`);
   }
 
   // 失败时把真实错误原因带出来（否则只看到“工具执行失败”）
@@ -536,17 +674,31 @@ export async function* runAgentChatStream(payload: {
   workspace: Workspace;
   message: string;
   history: HistoryItem[];
+  signal?: AbortSignal;
 }) {
   const cfg = getConfig();
   const systemPrompt = await loadSystemPrompt(cfg.rootDir);
   const input: unknown[] = [];
   const sources = new Set<string>();
+  const citations = new Map<string, SourceCitation>();
   const thoughtTrace: string[] = [];
   const emittedThinkingFallback = new Set<string>();
   const toolArgsBuffers = new Map<string, string>();
   const toolStartEmitted = new Set<string>();
   const webSearchStartedAt = new Map<string, number>();
   const webSearchEnded = new Set<string>();
+  let assistantText = "";
+  const budget = { maxRounds: 12, maxToolCalls: 48, maxMs: 90_000, maxRepeatedToolCall: 4 };
+  const startedAtAll = Date.now();
+  let rounds = 0;
+  let toolCalls = 0;
+  const repeatedToolCalls = new Map<string, number>();
+  const buildDoneChunk = () => ({
+    type: "done" as const,
+    sources: [...sources],
+    citations: [...citations.values()].map((c, idx) => ({ id: idx + 1, ...c })),
+    thought_trace: [...new Set(thoughtTrace)]
+  });
 
   // ModelArk Responses API: input item uses { type:"message", role, content:"..." }
   input.push({
@@ -571,9 +723,27 @@ export async function* runAgentChatStream(payload: {
   // 不限制轮次：只要模型持续触发工具调用，就继续下一轮
   // 注意：若模型陷入工具循环，这里不会主动熔断（按产品需要可后续再加）
   while (true) {
+    if (payload.signal?.aborted) {
+      yield { type: "text", content: `\n\n[系统提示：用户已手动终止]` };
+      yield buildDoneChunk();
+      return;
+    }
+    rounds += 1;
+    if (rounds > budget.maxRounds) {
+      yield { type: "text", content: `\n\n[系统熔断] 工具轮次超过上限（${budget.maxRounds}）。请缩小问题范围后重试。` };
+      yield buildDoneChunk();
+      return;
+    }
+    if (Date.now() - startedAtAll > budget.maxMs) {
+      yield { type: "text", content: `\n\n[系统熔断] 对话耗时超过 ${Math.round(budget.maxMs / 1000)} 秒，请拆分任务后重试。` };
+      yield buildDoneChunk();
+      return;
+    }
     let hasProcessedChunk = false;
     let needNextRound = false;
     let hasOutputDelta = false;
+    let thinkingSource: "none" | "delta" | "trace" = "none";
+    let emittedReasoningText = "";
 
     // 根据工作空间配置决定是否启用联网搜索
     // 构建工具列表：包含文件操作工具 + 可选的联网搜索
@@ -588,7 +758,8 @@ export async function* runAgentChatStream(payload: {
       model: payload.workspace.model || cfg.defaultModel,
       input,
       tools,
-      tool_choice: "auto"
+      tool_choice: "auto",
+      signal: payload.signal
     })) {
       const chunkData = chunk as ModelResponse | StreamEvent;
       hasProcessedChunk = true;
@@ -713,18 +884,42 @@ export async function* runAgentChatStream(payload: {
       // 提取思考过程（与工具轨迹分离）
       const reasoningDeltas = getReasoningDelta(chunkData);
       if (reasoningDeltas.length > 0) {
-        for (const delta of reasoningDeltas) {
-          if (delta.length > 0) {
-            yield { type: "thinking", content: delta };
+        if (thinkingSource !== "trace") {
+          for (const delta of reasoningDeltas) {
+            if (delta.length === 0) continue;
+
+            if (delta === emittedReasoningText) {
+              continue;
+            }
+
+            if (delta.startsWith(emittedReasoningText)) {
+              const suffix = delta.slice(emittedReasoningText.length);
+              emittedReasoningText = delta;
+              if (!suffix) continue;
+              yield { type: "thinking", content: suffix, thinkingMode: "delta" as const };
+              thinkingSource = "delta";
+              continue;
+            }
+
+            if (emittedReasoningText.endsWith(delta)) {
+              continue;
+            }
+
+            emittedReasoningText += delta;
+            yield { type: "thinking", content: delta, thinkingMode: "delta" as const };
+            thinkingSource = "delta";
           }
         }
       } else {
         // 某些模型仅在完成事件返回思考内容，作为降级补偿
-        const traces = getReasoningTrace(toModelResponse(chunkData));
-        for (const trace of traces) {
-          if (!emittedThinkingFallback.has(trace)) {
-            emittedThinkingFallback.add(trace);
-            yield { type: "thinking", content: trace };
+        if (thinkingSource !== "delta") {
+          const traces = getReasoningTrace(toModelResponse(chunkData));
+          for (const trace of traces) {
+            if (!emittedThinkingFallback.has(trace)) {
+              emittedThinkingFallback.add(trace);
+              yield { type: "thinking", content: trace, thinkingMode: "snapshot" as const };
+              thinkingSource = "trace";
+            }
           }
         }
       }
@@ -733,10 +928,12 @@ export async function* runAgentChatStream(payload: {
       const textDelta = getTextDelta(chunkData);
       if (textDelta) {
         hasOutputDelta = true;
+        assistantText += textDelta;
         yield { type: "text", content: textDelta };
       }
       const text = !hasOutputDelta ? getOutputText(toModelResponse(chunkData)) : "";
       if (text) {
+        assistantText += text;
         yield { type: "text", content: text };
       }
 
@@ -745,6 +942,21 @@ export async function* runAgentChatStream(payload: {
       if (calls.length > 0) {
         for (const call of calls) {
           thoughtTrace.push(`🔧 调用工具: ${call.name}`);
+          toolCalls += 1;
+          if (toolCalls > budget.maxToolCalls) {
+            yield { type: "text", content: `\n\n[系统熔断] 工具调用次数超过上限（${budget.maxToolCalls}）。` };
+            yield buildDoneChunk();
+            return;
+          }
+
+          const toolCallKey = `${call.name}:${call.arguments}`;
+          const repeatedCount = (repeatedToolCalls.get(toolCallKey) ?? 0) + 1;
+          repeatedToolCalls.set(toolCallKey, repeatedCount);
+          if (repeatedCount > budget.maxRepeatedToolCall) {
+            yield { type: "text", content: `\n\n[系统熔断] 检测到重复工具调用（${call.name}）超过阈值，已停止。` };
+            yield buildDoneChunk();
+            return;
+          }
 
           const argsObj = safeParseJsonObject(call.arguments);
           const startSummary = summarizeToolStart(call.name, argsObj);
@@ -764,12 +976,17 @@ export async function* runAgentChatStream(payload: {
           const startedAt = Date.now();
           let toolResult: any;
           let toolOk = false;
-          try {
-            toolResult = await runTool(payload.workspace, call.name, call.arguments);
-            toolOk = true;
-          } catch (error) {
-            toolResult = { ok: false, error: (error as Error).message };
+          if (payload.signal?.aborted) {
+            toolResult = { ok: false, error: "系统提示：用户已手动终止执行" };
             toolOk = false;
+          } else {
+            try {
+              toolResult = await runTool(payload.workspace, call.name, call.arguments);
+              toolOk = true;
+            } catch (error) {
+              toolResult = { ok: false, error: (error as Error).message };
+              toolOk = false;
+            }
           }
           const durationMs = Date.now() - startedAt;
 
@@ -800,17 +1017,11 @@ export async function* runAgentChatStream(payload: {
 
           // 收集来源信息（仅在成功时有意义）
           if (toolOk) {
-            const toolPath = (toolResultObj as any).path;
-            if (typeof toolPath === "string") {
-              sources.add(toolPath);
-            }
-            const toolHits = (toolResultObj as any).hits;
-            if (Array.isArray(toolHits)) {
-              for (const hit of toolHits) {
-                if (hit && typeof hit === "object" && typeof (hit as any).path === "string") {
-                  sources.add(String((hit as any).path));
-                }
-              }
+            const extracted = collectSourceCitationsFromToolResult(toolResultObj);
+            for (const c of extracted) {
+              sources.add(c.path);
+              const key = `${c.path}:${c.startLine ?? ""}-${c.endLine ?? ""}:${c.excerpt ?? ""}`;
+              citations.set(key, c);
             }
           }
         }
@@ -836,11 +1047,8 @@ export async function* runAgentChatStream(payload: {
         };
         yield toolEndChunk;
       }
-      yield {
-        type: "done",
-        sources: [...sources],
-        thought_trace: [...new Set(thoughtTrace)]
-      };
+
+      yield buildDoneChunk();
       return;
     }
   }
